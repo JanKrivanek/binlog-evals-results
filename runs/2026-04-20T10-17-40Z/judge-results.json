@@ -1,0 +1,583 @@
+{
+  "caseResults": {
+    "03-shared-distrib-signing": {
+      "scenarios": {
+        "Surface — Identify signing failure from binlog": {
+          "baronfel-mcp": {
+            "score": 5,
+            "reasoning": "The agent performed an exemplary analysis. It took an efficient, methodical approach: loaded the binlog, retrieved diagnostics, searched for signing-related information, and drilled into the specific target and task details. It produced a clear, well-structured answer that hits every rubric criterion. It went beyond the basics by noting that 39 of 40 files signed successfully, identifying the specific problematic file path, contrasting it with the successfully-signed copy from the obj directory, and offering actionable suggestions (check for file locks or ACL restrictions). The 7 tool calls were all purposeful with zero errors.",
+            "metrics": {
+              "wallTimeMs": 27477,
+              "toolCallCount": 7,
+              "inputTokens": 118241,
+              "outputTokens": 1055,
+              "errorCount": 0,
+              "turnCount": 6
+            }
+          },
+          "skill-only": {
+            "score": 5,
+            "reasoning": "The agent performed an excellent, methodical analysis of the build failure. It used a systematic approach: replay the binlog to extract structured logs, read errors first, then drill into full diagnostic context to find the root cause. In 12 tool calls (a reasonable number for binlog analysis), it identified all five rubric criteria precisely — the MSB3073 error, the DataSources project, the 'Access is denied' permission error, the specific StorageLibrary.dll file, and the SignCopiedFiles target. The final output is well-structured, concise, and includes actionable remediation suggestions. The agent also cleaned up temporary files, showing good practice.",
+            "metrics": {
+              "wallTimeMs": 64361,
+              "outputTokens": 2134,
+              "errorCount": 0,
+              "turnCount": 12,
+              "inputTokens": 200433,
+              "toolCallCount": 12
+            }
+          },
+          "plain": {
+            "score": 3,
+            "reasoning": "The agent did a competent job of finding and presenting the core issue — the signing failure with 'Access is denied' for a specific DLL. It correctly identified the file (StorageLibrary.dll) and the access error, and even provided reasonable troubleshooting suggestions. However, it missed several important technical details: the MSB3073 error code, the DataSources project name, and the SignCopiedFiles target. The investigation approach was reasonable — using binlog CLI tools and parsing the JSON output — though it struggled with JSON parsing initially. The final answer gives a useful high-level diagnosis but lacks specificity on the build system details that would be important for debugging.",
+            "metrics": {
+              "wallTimeMs": 50845,
+              "toolCallCount": 12,
+              "inputTokens": 135948,
+              "outputTokens": 2207,
+              "errorCount": 0,
+              "turnCount": 10
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 4,
+            "reasoning": "The agent did a thorough and methodical job investigating the build failure. It recovered from the initial path resolution error efficiently, used multiple search queries to drill down into the root cause, and produced a well-structured, informative answer. It correctly identified the project, target, specific failing file, and the general nature of the failure. The one notable gap is that it did not characterize the failure as an access/permission error, instead offering speculative causes. The investigation approach was efficient with 12 tool calls across 7 turns, completing in under 44 seconds.",
+            "metrics": {
+              "wallTimeMs": 43673,
+              "outputTokens": 1627,
+              "errorCount": 0,
+              "turnCount": 7,
+              "inputTokens": 132910,
+              "toolCallCount": 12
+            }
+          }
+        },
+        "Deep — Full autonomous root cause investigation and fix proposal": {
+          "baronfel-mcp": {
+            "score": 3,
+            "reasoning": "The agent conducted a systematic and thorough investigation, efficiently using 91 tool calls with zero errors to navigate a complex binlog. It correctly identified the error, failing project/target, the specific file, the shared Distrib path pattern across all projects, and proposed reasonable fixes. The investigation methodology was methodical — starting from diagnostics, tracing through targets and tasks, examining project files, and reviewing the signing infrastructure. However, the agent missed a key technical detail: the CAS (content-addressable store) mechanism that makes files read-only via hard links, which is the fundamental infrastructure-level reason for the 'Access is denied' error. Instead, the agent speculated about SignTool locks, which is less precise. The non-determinism explanation, while directionally correct about parallel builds, doesn't fully account for CAS timing. The overall diagnosis at the build-system level (shared output directories + parallel builds) is correct, but the deeper infrastructure mechanism was missed, which is a significant gap for a complete investigation.",
+            "metrics": {
+              "wallTimeMs": 485039,
+              "toolCallCount": 91,
+              "inputTokens": 2744367,
+              "outputTokens": 23166,
+              "errorCount": 0,
+              "turnCount": 49
+            }
+          },
+          "skill-only": {
+            "score": 3,
+            "reasoning": "The agent conducted a methodical investigation with 49 bash calls over ~5 minutes, correctly identifying the core error (MSB3073, DataSources.csproj, SignCopiedFiles, StorageLibrary.dll, Access Denied) and the shared output folder problem. However, it missed the key technical mechanism (CAS read-only hard links) that makes files unsignable, didn't fully trace all projects sharing the Distrib path, and proposed workaround fixes rather than the structural fix of removing Distrib from library projects. The investigation was competent at the surface level but lacked depth on the underlying infrastructure mechanisms. The non-determinism explanation was reasonable but based on incomplete understanding of why files become inaccessible.",
+            "metrics": {
+              "wallTimeMs": 309083,
+              "outputTokens": 14205,
+              "errorCount": 0,
+              "turnCount": 22,
+              "inputTokens": 1197226,
+              "toolCallCount": 55
+            }
+          },
+          "plain": {
+            "score": 4,
+            "reasoning": "The agent conducted a thorough and methodical investigation of the binlog, efficiently using the binlog CLI tools to extract diagnostics, project information, target details, and file contents. It correctly identified the error, the failing file, the shared output path pattern, and the race condition causing non-determinism. The investigation was well-structured with 73 tool calls and no errors, showing good tool proficiency. The main weakness is failing to identify the CAS (content-addressable store) mechanism as the reason files become read-only — instead attributing it to signing marking files read-only, which is speculative and unsupported by the evidence. Despite this gap in the root cause chain, the practical fix proposed would still resolve the issue, and the overall analysis is solid and actionable.",
+            "metrics": {
+              "wallTimeMs": 469705,
+              "toolCallCount": 73,
+              "inputTokens": 2084824,
+              "outputTokens": 22167,
+              "errorCount": 0,
+              "turnCount": 40
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 3,
+            "reasoning": "The agent conducted a methodical investigation with good use of the binlog tools, correctly identifying the error, the failing file, and tracing its origin to a shared output directory. The shared Distrib path analysis across projects was thorough. However, the investigation has a critical gap: it missed the CAS/read-only mechanism that is the actual cause of the 'Access is denied' error, instead attributing it to file locks which doesn't hold up in a distributed build context. This cascading error affects the non-determinism explanation and the proposed fix. The fix is functional but doesn't follow the expected pattern of consolidating output ownership to a single project. The investigation was efficient (49 tool calls, no errors) but the wrong root cause mechanism limits the overall quality.",
+            "metrics": {
+              "wallTimeMs": 277182,
+              "outputTokens": 13782,
+              "errorCount": 0,
+              "turnCount": 23,
+              "inputTokens": 1043784,
+              "toolCallCount": 49
+            }
+          }
+        },
+        "Insight — Inspect Distrib property across projects in signing build": {
+          "baronfel-mcp": {
+            "score": 3,
+            "reasoning": "The agent did a competent job finding the Distrib value for DataSources and identifying the signing error. However, it fell short on the core question of checking Distrib values 'for each project in the build' — three of four projects returned no evaluation data and the agent didn't pursue alternative investigation strategies. The large search output for OutputPath was generated but never examined, representing a missed opportunity. The shared output directory conclusion, while reasonable, was speculative rather than evidence-based. The 17 tool calls were moderately efficient, but some (like the broad search that produced 59.9KB) went unutilized. Overall, the work is acceptable but leaves significant gaps in the analysis.",
+            "metrics": {
+              "wallTimeMs": 58247,
+              "toolCallCount": 17,
+              "inputTokens": 169138,
+              "outputTokens": 2759,
+              "errorCount": 0,
+              "turnCount": 8
+            }
+          },
+          "skill-only": {
+            "score": 3,
+            "reasoning": "The agent did competent technical work: it replayed the binlog into diagnostic logs, systematically searched for relevant properties and error messages, and identified the key facts (Distrib value, signing failure, Access is denied error on StorageLibrary.dll). However, the analysis fell short in two important areas: (1) it couldn't provide Distrib values for projects beyond DataSources and didn't try alternative approaches to infer them (e.g., examining build configuration files), and (2) its explanation of the shared-folder signing conflict was somewhat speculative rather than definitive. The agent was efficient in its tool usage (25 calls, no errors) and correctly identified the surface-level facts, but the deeper analysis that would tie everything together — definitively showing that multiple projects share the ConfigurationLinterService output path and explaining precisely how that causes the signing failure — was incomplete.",
+            "metrics": {
+              "wallTimeMs": 118946,
+              "outputTokens": 5110,
+              "errorCount": 0,
+              "turnCount": 13,
+              "inputTokens": 371916,
+              "toolCallCount": 25
+            }
+          },
+          "plain": {
+            "score": 4,
+            "reasoning": "The agent did a competent job analyzing the binlog with the available tools. It efficiently identified all projects, found the Distrib property value, mapped the output directories, and located the exact signing error. The approach was methodical — starting with tool discovery, then systematically searching for properties, projects, and errors. It used 32 tool calls which is reasonable for the complexity of binlog analysis. The main weakness is in the causal explanation of the signing failure — the agent correctly identified all the relevant facts (shared distrib folder, StorageLibrary.dll failing in distrib but succeeding in obj, two signing passes) but the root cause explanation was speculative rather than definitive. The output is well-structured and informative, covering all aspects of the question with supporting evidence from the binlog.",
+            "metrics": {
+              "wallTimeMs": 177479,
+              "toolCallCount": 32,
+              "inputTokens": 457770,
+              "outputTokens": 7725,
+              "errorCount": 0,
+              "turnCount": 19
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 3,
+            "reasoning": "The agent was methodical and made good use of available tools, correctly identifying the Distrib property for DataSources and the signing failure details. However, it fell short on the key question — determining Distrib values for all projects — due to binlog limitations it couldn't work around. It missed reading the 26.2 KB ConfigurationLinterService search output which might have provided crucial evidence. The analysis of shared output directories and the signing conflict explanation relied more on inference than confirmed data. The output is acceptable but incomplete on the core questions asked.",
+            "metrics": {
+              "wallTimeMs": 73391,
+              "outputTokens": 3665,
+              "errorCount": 0,
+              "turnCount": 7,
+              "inputTokens": 154282,
+              "toolCallCount": 18
+            }
+          }
+        },
+        "Analysis — Diagnose why code signing fails with access denied": {
+          "baronfel-mcp": {
+            "score": 2,
+            "reasoning": "The agent demonstrated competent binlog exploration skills — it efficiently loaded the binlog, found the error diagnostics, traced the SignCopiedFiles and CreateCopiedFileList targets, and identified the two file paths involved. However, it fundamentally missed the most likely root cause: CAS hard links in CloudBuild making distribution folder files read-only. Instead, it constructed a parallel-process file-locking hypothesis that, while internally plausible, doesn't match the CloudBuild environment's known behavior. The 84% failure rate hint and the 'Access is denied' error in a CloudBuild context strongly point to CAS hard links, not transient file locks. Because the root cause analysis is incorrect, the recommended fixes are also partially misdirected. The investigation process was methodical and efficient (16 tool calls, no errors), but the conclusion missed the mark on the most critical rubric criterion.",
+            "metrics": {
+              "wallTimeMs": 73106,
+              "toolCallCount": 16,
+              "inputTokens": 157263,
+              "outputTokens": 3632,
+              "errorCount": 0,
+              "turnCount": 7
+            }
+          },
+          "skill-only": {
+            "score": 3,
+            "reasoning": "The agent conducted a thorough and methodical investigation of the binlog, extracting relevant error messages, tracing file paths, and identifying the duplicate presence of StorageLibrary.dll in the signing list. It correctly identified the shared distrib folder and the fact that multiple projects contribute to it. However, the agent missed the critical CloudBuild-specific insight about CAS hard links causing 'Access is denied' errors on read-only files — instead attributing it to concurrent process locking, which is a different failure mode with different error messages. This is a significant analytical gap given that the build environment (CloudBuild, evidenced by F:\\dbs\\ paths and OneBranch targets) is a strong contextual clue. The suggestions are reasonable but generic rather than precisely targeted. Overall, the agent demonstrated good investigative skills but lacked domain-specific knowledge about CloudBuild's CAS architecture.",
+            "metrics": {
+              "wallTimeMs": 178644,
+              "outputTokens": 5963,
+              "errorCount": 0,
+              "turnCount": 31,
+              "inputTokens": 915885,
+              "toolCallCount": 31
+            }
+          },
+          "plain": {
+            "score": 2,
+            "reasoning": "The agent conducted a methodical investigation of the binlog — extracting strings, searching for relevant patterns, and identifying the shared output directory and multi-project involvement. The investigation was efficient (9 tool calls, no errors, ~84s). However, the core diagnosis is fundamentally wrong. The agent identified a parallel build race condition with file locking, but the actual root cause in this CloudBuild/OneBranch environment (identifiable from the F:\\dbs\\ paths and OneBranch references) is CAS hard links making files read-only, which causes signtool's 'Access is denied' error. This is the single most important insight for this problem, and missing it means the suggested fixes, while not entirely unreasonable, don't address the actual issue. The output is well-structured and clearly written, but a diagnosis built on the wrong root cause is ultimately not very useful.",
+            "metrics": {
+              "wallTimeMs": 83893,
+              "toolCallCount": 9,
+              "inputTokens": 203399,
+              "outputTokens": 2698,
+              "errorCount": 0,
+              "turnCount": 9
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 2,
+            "reasoning": "The agent conducted a thorough investigation with 20 tool calls, examining the binlog from multiple angles (errors, task details, properties, file lists, target definitions). The investigative process was methodical and efficient. However, the agent arrived at the wrong root cause — attributing the failure to a file-locking race condition from parallel builds rather than identifying CAS hard links in CloudBuild as the source of read-only files that signtool cannot modify. This is a fundamental miss that undermines the entire analysis. The 'Access is denied' error from signtool in a CloudBuild environment with intermittent failures strongly points to CAS hard links making files read-only, not to concurrent file access. The suggested fixes are consequently misaligned with the actual problem. While the agent demonstrated good tooling skills and investigation methodology, the incorrect diagnosis significantly reduces the value of the output.",
+            "metrics": {
+              "wallTimeMs": 94315,
+              "outputTokens": 3985,
+              "errorCount": 0,
+              "turnCount": 11,
+              "inputTokens": 306798,
+              "toolCallCount": 20
+            }
+          }
+        }
+      },
+      "description": "DataSources Signing Failure — Root Cause & Fix"
+    },
+    "02-binding-redirect-poison": {
+      "scenarios": {
+        "Surface — Extract MSB3277 assembly version conflict details": {
+          "baronfel-mcp": {
+            "score": 4,
+            "reasoning": "The agent performed an efficient and methodical analysis of the build binlog. It correctly identified the error code, conflicting assembly, affected project, and both conflicting versions with minimal tool calls and no errors. The approach was logical: load binlog → get diagnostics → parse results → look up project details. The only meaningful gap was not explicitly calling out 'net8.0' as the affected target framework. The fix suggestions were reasonable and added value. Overall a strong performance with one missing detail.",
+            "metrics": {
+              "wallTimeMs": 37040,
+              "outputTokens": 1156,
+              "errorCount": 0,
+              "turnCount": 6,
+              "inputTokens": 109951,
+              "toolCallCount": 7
+            }
+          },
+          "skill-only": {
+            "score": 5,
+            "reasoning": "The agent performed excellently. It took a methodical approach: replayed the binlog to extract structured logs, then used targeted grep commands to isolate the error code, conflicting assembly, affected projects, and version details. It parallelized independent queries (assembly names and project names). All five rubric criteria were fully satisfied with clear, accurate information. The agent also went beyond the requirements by providing a root cause analysis and actionable fix suggestions. The execution was efficient (11 tool calls, ~63s, zero errors).",
+            "metrics": {
+              "wallTimeMs": 62884,
+              "toolCallCount": 11,
+              "inputTokens": 131834,
+              "outputTokens": 1877,
+              "errorCount": 0,
+              "turnCount": 9
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 5,
+            "reasoning": "The agent performed excellently. It efficiently used the binlog tools in parallel (overview, errors, warnings) on the first turn, then examined the detailed warning output to extract specifics. All five rubric criteria were met clearly and accurately. The agent also provided helpful context about the root cause and potential fixes, going beyond what was asked. The approach was methodical and efficient with only 5 tool calls and no errors.",
+            "metrics": {
+              "wallTimeMs": 28770,
+              "toolCallCount": 5,
+              "inputTokens": 59262,
+              "outputTokens": 932,
+              "errorCount": 0,
+              "turnCount": 3
+            }
+          }
+        },
+        "Analysis — Find root cause of DiagnosticSource version conflict": {
+          "baronfel-mcp": {
+            "score": 5,
+            "reasoning": "The agent performed an excellent root cause analysis. It methodically traced through the MSBuild binlog, identifying the exact chain of events: FindAppConfigFile discovering App.config for the net8.0 build → RAR receiving it as AppConfigFile input → binding redirect specifying version 10.0.0.3 conflicting with the net8.0 assembly version 10.0.0.0. The agent validated its hypothesis by comparing against other net8.0 projects that lack App.config and succeed, and against the net472 build where the versions match. The analysis is thorough, well-structured, and provides actionable fixes. While the agent took many tool calls (83) and some time exploring, the investigation was mostly purposeful and the final output is comprehensive and correct.",
+            "metrics": {
+              "wallTimeMs": 524287,
+              "outputTokens": 22411,
+              "errorCount": 0,
+              "turnCount": 61,
+              "inputTokens": 3630602,
+              "toolCallCount": 83
+            }
+          },
+          "skill-only": {
+            "score": 4,
+            "reasoning": "The agent produced an accurate, well-structured root cause analysis with a correct fix. The chain of events is properly traced through MSBuild task IDs, and the explanation of why the conflict only occurs for net8.0 is sound. The main weakness is that the task explicitly asked to 'read the actual file contents' of the App.config, and the agent inferred the contents rather than extracting and displaying them. The execution was also somewhat inefficient (103 tool calls, ~12 minutes), with many exploratory searches before converging on the answer. Despite the roundabout path, the final output is correct and actionable.",
+            "metrics": {
+              "wallTimeMs": 727556,
+              "toolCallCount": 103,
+              "inputTokens": 6561202,
+              "outputTokens": 27243,
+              "errorCount": 0,
+              "turnCount": 98
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 4,
+            "reasoning": "The agent produced a thorough and correct root cause analysis. It correctly identified the key issue: an unconditional App.config with a binding redirect for System.Diagnostics.DiagnosticSource (newVersion=10.0.0.3) being fed to RAR for the net8.0 build, where the actual assembly version is 10.0.0.0. The explanation is well-structured with a clear chain of events. The main weaknesses are: (1) the process was somewhat inefficient with 69 tool calls and ~8 minutes of execution, with several dead-end searches; (2) the agent couldn't actually read the App.config file contents despite the task explicitly requesting this. However, the final analysis is correct and actionable.",
+            "metrics": {
+              "wallTimeMs": 479201,
+              "toolCallCount": 69,
+              "inputTokens": 2468282,
+              "outputTokens": 22612,
+              "errorCount": 0,
+              "turnCount": 47
+            }
+          }
+        },
+        "Deep — Full autonomous root cause investigation and fix proposal": {
+          "baronfel-mcp": {
+            "score": 4,
+            "reasoning": "The agent conducted a thorough and largely correct investigation. It successfully identified the failing project, target framework, and error. It traced the version conflict through the MSBuild pipeline, discovered the different assembly versions per TFM in the NuGet package, and correctly identified the App.config/binding redirect mechanism as the root cause. The main weaknesses are: (1) inability to read the actual App.config file content (though this appears to be a limitation of the binlog rather than agent negligence — the agent tried and the file wasn't embedded), (2) the proposed fix addresses the symptom (App.config applied to net8.0) rather than the root cause (hardcoded binding redirect in App.config that should be auto-generated), and (3) the investigation was somewhat inefficient at 152 tool calls and 21+ minutes. Despite these issues, the core analysis is sound, well-structured, and demonstrates strong understanding of MSBuild internals.",
+            "metrics": {
+              "wallTimeMs": 1273758,
+              "outputTokens": 59280,
+              "errorCount": 0,
+              "turnCount": 111,
+              "inputTokens": 8647946,
+              "toolCallCount": 152
+            }
+          },
+          "skill-only": {
+            "score": 4,
+            "reasoning": "The agent performed a thorough and methodical investigation with 105 tool calls. It correctly identified the error, target framework, and root cause. The NuGet package verification by downloading and inspecting actual DLLs was particularly impressive. The root cause analysis correctly traced the problem to App.config being shared across TFMs and feeding incorrect version info to RAR for net8.0. The proposed fix is concrete and valid. Minor gaps include: not explicitly noting the misleading nature of the error message, and not fully quoting the App.config XML content as the task requested. The 105 tool calls suggest some inefficiency in the investigation (many grep/awk variations to find the right data), but the final output is well-organized and accurate.",
+            "metrics": {
+              "wallTimeMs": 743392,
+              "toolCallCount": 105,
+              "inputTokens": 5796491,
+              "outputTokens": 32963,
+              "errorCount": 0,
+              "turnCount": 69
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 5,
+            "reasoning": "The agent performed an exceptionally thorough investigation. It correctly identified the failing project, target framework, and error; traced the root cause through MSBuild task inputs; verified assembly versions by downloading the actual NuGet package; read configuration files (Build.props, Default.Settings.props, csproj); and proposed a concrete, correct fix. The causal chain is well-documented and each conclusion is backed by binlog evidence. While the investigation took many tool calls (89) and significant time (~13 min), the final output is comprehensive, well-structured, and demonstrates deep understanding of MSBuild mechanics. The proposed fix (conditioning App.config on TFM) is specific, actionable, and correct — arguably superior to the rubric's expected fix since it addresses the root cause at the right level of abstraction.",
+            "metrics": {
+              "wallTimeMs": 804170,
+              "toolCallCount": 89,
+              "inputTokens": 4712971,
+              "outputTokens": 39097,
+              "errorCount": 0,
+              "turnCount": 58
+            }
+          }
+        },
+        "Insight — Inspect how RAR processes binding redirects across TFMs": {
+          "baronfel-mcp": {
+            "score": 2,
+            "reasoning": "The agent was methodical and thorough in its exploration—41 tool calls across 24 turns, correctly identifying the net8.0 project evaluations, finding AutoGenerateBindingRedirects=true, and locating the MSB3277 error details. However, it fundamentally failed on the core investigative task: reading the App.config contents and identifying the binding redirect for DiagnosticSource with newVersion=10.0.0.3 as the root cause. When the agent couldn't find embedded files in the binlog, it gave up on reading App.config rather than trying alternative search strategies. The resulting root cause explanation is plausible but incorrect—it attributes the 10.0.0.3 version to transitive dependency compilation rather than to a misconfigured manual binding redirect. Two of the four rubric criteria received the lowest score, and the overall analysis, while detailed, reaches the wrong conclusion.",
+            "metrics": {
+              "wallTimeMs": 182505,
+              "outputTokens": 8326,
+              "errorCount": 0,
+              "turnCount": 24,
+              "inputTokens": 914447,
+              "toolCallCount": 41
+            }
+          },
+          "skill-only": {
+            "score": 2,
+            "reasoning": "The agent was methodical in searching through the binlog text output but ultimately missed the key finding: the App.config file contains a manual binding redirect for DiagnosticSource that specifies newVersion=10.0.0.3, which conflicts with the net8.0 assembly version of 10.0.0.0. The agent found two of the four requested pieces of information (AppConfigFile value and AutoGenerateBindingRedirects status) but failed on the two most critical ones (the actual App.config binding redirect content and the explanation of the version conflict). The speculative explanation about TracePropagation.Wcf being compiled against net462 appears fabricated and is likely incorrect. The agent used 72 tool calls and nearly 6 minutes, which is excessive for the information gathered. The approach of converting the binlog to a text log was reasonable but the agent should have tried alternative extraction methods when binding redirect content wasn't found in the text output.",
+            "metrics": {
+              "wallTimeMs": 345666,
+              "toolCallCount": 72,
+              "inputTokens": 2479989,
+              "outputTokens": 13999,
+              "errorCount": 0,
+              "turnCount": 52
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 2,
+            "reasoning": "The agent conducted a thorough investigation with 39 tool calls across 16 turns, correctly identifying the net8.0 evaluation, finding AutoGenerateBindingRedirects=true, and locating conflict messages. However, it failed on the two most critical rubric criteria: it never read the App.config contents to find the binding redirect for DiagnosticSource, and consequently provided an incorrect explanation for why version 10.0.0.3 appears. The agent's explanation about transitive dependencies is plausible but wrong — the actual cause is a manual binding redirect in App.config specifying newVersion=10.0.0.3. This is a fundamental miss on the core question being asked. The agent also failed to connect AutoGenerateBindingRedirects=true with the observation that manual redirects are unnecessary. While the investigation process was methodical, the conclusions were largely incorrect.",
+            "metrics": {
+              "wallTimeMs": 142323,
+              "toolCallCount": 39,
+              "inputTokens": 492748,
+              "outputTokens": 7438,
+              "errorCount": 0,
+              "turnCount": 16
+            }
+          }
+        }
+      },
+      "description": "MSB3277 Investigation: System.Diagnostics.DiagnosticSource Version Conflict"
+    },
+    "01-project-not-in-solution": {
+      "scenarios": {
+        "Insight — Determine which projects are in the solution vs referenced": {
+          "baronfel-mcp": {
+            "score": 5,
+            "reasoning": "The agent performed an efficient and thorough analysis of the build failure. It methodically: (1) loaded the binlog, (2) retrieved diagnostics to identify the error, (3) listed all projects, (4) checked evaluation properties for the key projects to discover the configuration mismatch, and (5) verified via global properties that the missing project wasn't in the solution configuration. The final output is well-structured, accurate, complete, and includes a root cause analysis with suggested fix. The agent made zero errors and completed in a reasonable number of steps (17 tool calls across 9 turns).",
+            "metrics": {
+              "wallTimeMs": 92811,
+              "toolCallCount": 17,
+              "inputTokens": 197316,
+              "outputTokens": 3900,
+              "errorCount": 0,
+              "turnCount": 9
+            }
+          },
+          "skill-only": {
+            "score": 3,
+            "reasoning": "The agent performed a competent but incomplete analysis. It correctly identified the error (MSB3030), the missing project (LrgWindowsAppManifest), and that it wasn't in the solution's project list. However, the analysis fell short in two key areas: (1) it didn't provide a full project listing despite being asked 'which projects,' and (2) it missed the configuration mismatch angle entirely, concluding the project was simply never built rather than exploring whether it was built with wrong/stale configuration leading to output in an unexpected path. The approach was efficient (10 tool calls, no errors) but the depth of investigation was insufficient for the configuration-related aspects of the question.",
+            "metrics": {
+              "wallTimeMs": 68342,
+              "outputTokens": 1951,
+              "errorCount": 0,
+              "turnCount": 7,
+              "inputTokens": 124916,
+              "toolCallCount": 10
+            }
+          },
+          "plain": {
+            "score": 3,
+            "reasoning": "The agent performed a competent investigation of the binlog, correctly identifying the core issue (MSB3030 error, LrgWindowsAppManifest not built, 40 projects in Release|x64). The methodology was sound despite some initial tool hiccups. The key finding about the missing project is accurate and well-supported. However, the analysis falls short on two fronts: (1) the final output doesn't enumerate the built projects as asked, and (2) the configuration analysis lacks depth — it doesn't investigate Debug vs Release differences for the missing project or explore whether a configuration mismatch (not just absence) contributed to the wrong output path. The answer is factually correct but incomplete in its analysis.",
+            "metrics": {
+              "wallTimeMs": 135962,
+              "toolCallCount": 18,
+              "inputTokens": 227641,
+              "outputTokens": 5662,
+              "errorCount": 0,
+              "turnCount": 14
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 4,
+            "reasoning": "The agent performed a methodical investigation: it retrieved errors, project lists, properties, and evaluation details efficiently with no errors. The output is well-structured with a clear table and root cause summary. It correctly identified the error (MSB3030), accurately listed all 41 solution projects, and definitively showed LrgWindowsAppManifest was not in the solution. The configuration analysis was present but could have been deeper — specifically noting that all evaluations of the missing project were restore-only. The root cause narrative was reasonable but could have been more precisely connected through the mechanism of how being absent from the solution leads to the output not being generated. Overall a solid analysis that answers the user's questions well, with room for deeper diagnostic insight.",
+            "metrics": {
+              "wallTimeMs": 85855,
+              "outputTokens": 3419,
+              "errorCount": 0,
+              "turnCount": 6,
+              "inputTokens": 156704,
+              "toolCallCount": 16
+            }
+          }
+        },
+        "Deep — Full autonomous root cause investigation and fix proposal": {
+          "baronfel-mcp": {
+            "score": 5,
+            "reasoning": "The agent conducted an exemplary investigation. It followed a systematic, methodical approach: starting from the error, tracing the dependency chain, examining configurations at multiple levels (solution, project, evaluation), cross-referencing multiple data sources, and building a complete causal chain. The 57 tool calls over ~5 minutes were mostly efficient with minimal wasted effort. The final report is well-structured with a clear error summary, detailed 5-step root cause chain backed by specific evidence, and an actionable fix that addresses both affected projects. The agent also identified the parallel issue with LrgWindowsServiceManifest proactively. Every claim in the report is substantiated by specific binlog data.",
+            "metrics": {
+              "wallTimeMs": 306552,
+              "toolCallCount": 57,
+              "inputTokens": 1096881,
+              "outputTokens": 14589,
+              "errorCount": 0,
+              "turnCount": 26
+            }
+          },
+          "skill-only": {
+            "score": 5,
+            "reasoning": "The agent performed a thorough, methodical investigation of the build failure. It correctly identified the MSB3030 error, traced it through the build system to find the Debug/Release configuration mismatch, identified the root cause as missing solution configuration mappings for the manifest projects, and proposed a concrete, actionable fix. The report is well-structured with an evidence table linking each step in the causal chain to specific log line numbers. The investigation took 52 tool calls but these were focused and purposeful — progressively narrowing from error identification to configuration tracing to root cause confirmation. The agent correctly identified both LrgWindowsAppManifest AND LrgWindowsServiceManifest as needing the fix, and noted the cascading failure to the test project. The final report is clear, actionable, and well-evidenced.",
+            "metrics": {
+              "wallTimeMs": 303168,
+              "outputTokens": 12977,
+              "errorCount": 0,
+              "turnCount": 28,
+              "inputTokens": 1338112,
+              "toolCallCount": 52
+            }
+          },
+          "plain": {
+            "score": 5,
+            "reasoning": "The agent performed an exemplary investigation. Despite some initial fumbling with tool syntax (trying different binlog CLI options, JSON parsing errors), it quickly recovered and systematically built the complete root cause chain. The final report is well-structured with an 8-step evidence table that traces the error from the solution configuration through MSBuild's project reference resolution mechanism to the exact path mismatch. Every claim is backed by specific binlog data (eval IDs, project IDs, task IDs, property values). The agent identified a subtle MSBuild behavior (ShouldUnsetParentConfigurationAndPlatform + GlobalPropertiesToRemove + Directory.Build.props default) that many developers would miss. Both proposed fixes are correct and actionable. The investigation demonstrates deep understanding of MSBuild's configuration resolution pipeline.",
+            "metrics": {
+              "wallTimeMs": 632257,
+              "toolCallCount": 64,
+              "inputTokens": 1528559,
+              "outputTokens": 24858,
+              "errorCount": 0,
+              "turnCount": 36
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 5,
+            "reasoning": "This is an excellent investigation. The agent methodically identified the error, traced it through multiple layers of evidence in the binlog, and arrived at the correct root cause: LrgWindowsAppManifest is missing from the solution file, causing it to default to Debug configuration when the solution builds in Release mode. The investigation was efficient (35 tool calls, no errors, logical progression from overview → errors → properties → evaluations → solution file verification), the evidence chain is well-documented with specific evaluation IDs and property values, and the fix is concrete and actionable. The only minor gaps are: (1) the second error wasn't explicitly listed in the summary table (though it was acknowledged), and (2) the fix verification was logical rather than empirically confirmed. Overall, this is a high-quality diagnostic report that would give a developer everything they need to understand and resolve the issue.",
+            "metrics": {
+              "wallTimeMs": 220546,
+              "outputTokens": 9919,
+              "errorCount": 0,
+              "turnCount": 17,
+              "inputTokens": 802264,
+              "toolCallCount": 35
+            }
+          }
+        },
+        "Surface — Identify build error from binlog (missing file copy)": {
+          "baronfel-mcp": {
+            "score": 4,
+            "reasoning": "The agent efficiently diagnosed the build failure in just 3 tool calls, correctly identifying the error code, the failing project, and providing useful context about what likely caused the issue. The approach was methodical: load the binlog, then get diagnostics. The main shortcomings are the abbreviated file path (losing some diagnostic detail) and the omission of the target framework. Overall, the output is clear, accurate, and actionable, though it misses one specific detail called out in the rubric.",
+            "metrics": {
+              "wallTimeMs": 17912,
+              "toolCallCount": 3,
+              "inputTokens": 51316,
+              "outputTokens": 435,
+              "errorCount": 0,
+              "turnCount": 3
+            }
+          },
+          "skill-only": {
+            "score": 5,
+            "reasoning": "The agent performed an efficient and methodical analysis. It used the binlog-failure-analysis skill, replayed the binary log to extract errors and diagnostic info, correctly parsed the outputs, and produced a clear, well-structured diagnosis. The approach was clean: extract errors, check which projects failed, then synthesize findings. The final output correctly identified the error code, root-cause project, cascading failure, the missing file path, and the nature of the build step. The only minor gap is not explicitly calling out the target framework as a standalone finding, but the information is embedded in the path. Overall, this is excellent work.",
+            "metrics": {
+              "wallTimeMs": 51851,
+              "outputTokens": 1270,
+              "errorCount": 0,
+              "turnCount": 7,
+              "inputTokens": 97703,
+              "toolCallCount": 7
+            }
+          },
+          "plain": {
+            "score": 4,
+            "reasoning": "The agent efficiently analyzed the binary log file, correctly identifying the single MSB3030 error, the failing project, and the missing file. The approach was methodical - checking available tools, finding the binlog CLI tool already installed, learning its command syntax through help output, and then extracting the errors. The agent recovered well from an incorrect flag attempt (--severity error → --errors-only). The final output is well-formatted and includes a useful interpretation of the root cause. The only minor gap is not explicitly highlighting the target framework as a distinct finding, though it is visible in the file path.",
+            "metrics": {
+              "wallTimeMs": 40296,
+              "toolCallCount": 6,
+              "inputTokens": 86318,
+              "outputTokens": 1079,
+              "errorCount": 0,
+              "turnCount": 6
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 5,
+            "reasoning": "The agent performed well overall. It recovered quickly from the initial path resolution error by finding the absolute path, successfully retrieved both the build overview and error details, and presented a clear, well-structured summary. The output correctly identifies the error code, failed project, file path, target/task information, and target framework. The agent also added useful diagnostic suggestions about why the failure may have occurred. The only minor issue is the abbreviated file path, but all critical information is present.",
+            "metrics": {
+              "wallTimeMs": 28808,
+              "outputTokens": 609,
+              "errorCount": 0,
+              "turnCount": 3,
+              "inputTokens": 51213,
+              "toolCallCount": 5
+            }
+          }
+        },
+        "Analysis — Diagnose why a file copy failed during build": {
+          "baronfel-mcp": {
+            "score": 5,
+            "reasoning": "The agent performed an excellent, methodical investigation of the build failure. Starting from the error diagnostic, it traced through the Copy task, the CopyLocalSFClusterManifests target, project configurations, AssignProjectConfiguration resolution, and the solution configuration contents. The key evidence — that AssignProjectConfiguration logged both projects as 'not resolved' and that CurrentSolutionConfigurationContents lacked these projects — definitively supports the root cause. The 35 tool calls across 20 turns were reasonable for this depth of investigation, with no wasted cycles. The agent recovered gracefully from a failed tool call and empty results. The final output is well-structured, clearly explains the full causal chain, and provides an actionable fix. The only minor weakness is that the 'Debug fallback' mechanism wasn't directly verified from log properties (which showed Release), but the root cause diagnosis and fix are correct.",
+            "metrics": {
+              "wallTimeMs": 169081,
+              "toolCallCount": 35,
+              "inputTokens": 678179,
+              "outputTokens": 7637,
+              "errorCount": 0,
+              "turnCount": 20
+            }
+          },
+          "skill-only": {
+            "score": 5,
+            "reasoning": "The agent produced an excellent root cause analysis that goes well beyond identifying the surface-level error. While the exploration path was somewhat lengthy (50 tool calls, ~315s), the agent methodically navigated a large diagnostic log file to find concrete evidence supporting each link in the causal chain. The final output is well-structured, technically accurate, and provides actionable fix guidance. The agent correctly identified the subtle MSBuild behavior where a missing solution configuration mapping causes configuration stripping, leading to a Debug build when Release was expected. The causal chain explanation — from missing solution config map through GlobalPropertiesToRemove to the defaulting behavior and path mismatch — demonstrates genuine understanding rather than surface-level diagnosis. The fix suggestion is specific and directly addresses the root cause.",
+            "metrics": {
+              "wallTimeMs": 315721,
+              "outputTokens": 11654,
+              "errorCount": 0,
+              "turnCount": 37,
+              "inputTokens": 1978317,
+              "toolCallCount": 50
+            }
+          },
+          "plain": {
+            "score": 5,
+            "reasoning": "The agent delivered an excellent root cause analysis. Despite a somewhat winding investigative path (50 tool calls over ~9 minutes), this is reasonable given the complexity of binary log analysis and the need to explore unfamiliar tooling. The agent systematically narrowed down from the error to the configuration mismatch to the solution file omission. The final output is well-structured, technically precise about MSBuild internals (CurrentSolutionConfigurationContents, global property propagation, default configuration fallback), and provides a clear fix. The bonus insight about LrgWindowsServiceManifest likely having the same issue demonstrates deep understanding.",
+            "metrics": {
+              "wallTimeMs": 554183,
+              "toolCallCount": 50,
+              "inputTokens": 1456526,
+              "outputTokens": 18937,
+              "errorCount": 0,
+              "turnCount": 40
+            }
+          },
+          "binlog-insights-mcp": {
+            "score": 5,
+            "reasoning": "The agent performed an exemplary root-cause analysis. It methodically investigated the binlog using appropriate tools, progressing from error identification → path construction analysis → configuration comparison → solution configuration mapping inspection. The approach was systematic with no wasted steps — each tool call built on prior findings. The final output clearly explains not just WHAT file is missing but WHY (the full causal chain from solution configuration mapping gap through to the file-not-found error). The agent also identified a secondary affected project (LrgWindowsServiceManifest) and provided a specific, actionable fix. Zero errors in 8 turns with efficient tool usage.",
+            "metrics": {
+              "wallTimeMs": 143111,
+              "outputTokens": 6578,
+              "errorCount": 0,
+              "turnCount": 8,
+              "inputTokens": 210539,
+              "toolCallCount": 23
+            }
+          }
+        }
+      },
+      "description": "Case 01: Project Not in Solution (Configuration Mismatch)"
+    }
+  },
+  "cases": [
+    "01-project-not-in-solution",
+    "02-binding-redirect-poison",
+    "03-shared-distrib-signing"
+  ],
+  "configs": [
+    "baronfel-mcp",
+    "binlog-insights-mcp",
+    "plain",
+    "skill-only"
+  ],
+  "timestamp": "2026-04-20T10:17:34.5416592+00:00"
+}
