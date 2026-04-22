@@ -1,0 +1,152 @@
+{
+  "extractRun": "plugin",
+  "configId": "C",
+  "configName": "baronfel-mcp",
+  "caseName": "03-shared-distrib-signing",
+  "scenarios": [
+    {
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "reasoning": "The agent did a competent job finding the Distrib property for DataSources and identifying the shared output directory as the root cause of the signing failure. The signing error analysis was well-reasoned and connected the dots between the shared ConfigurationLinterService folder and the 'Access is denied' error. However, a key weakness is that the task explicitly asked for the Distrib property 'for each project in the build' and the agent only retrieved it for one of four projects, giving up on the others without trying alternative search approaches. The agent had 17 tool calls and 73 seconds but didn't exhaust its options for finding per-project Distrib values. The output is useful but incomplete on the core question asked.",
+      "metrics": {
+        "inputTokens": 154317,
+        "turnCount": 7,
+        "errorCount": 0,
+        "outputTokens": 3267,
+        "wallTimeMs": 73169,
+        "toolCallCount": 17
+      },
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Found the Distrib property value for the DataSources project"
+        },
+        {
+          "score": 2,
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path"
+        },
+        {
+          "score": 4,
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)"
+        },
+        {
+          "score": 4,
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects"
+        }
+      ],
+      "score": 3
+    },
+    {
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "reasoning": "The agent conducted a methodical investigation and correctly identified several important aspects: the folder sweep behavior, the shared output directory, the specific failing file, and the target chain. The investigation was efficient with 30 tool calls. However, the agent missed the critical insight about CAS hard links in CloudBuild causing read-only files, which is the most likely root cause of the 'Access is denied' error in this environment. Instead, it proposed a parallel build race condition theory, which is plausible but less accurate given the CloudBuild context clearly indicated by the file paths and tooling. The analysis is partially correct but misses the key mechanism.",
+      "metrics": {
+        "inputTokens": 452517,
+        "turnCount": 16,
+        "errorCount": 0,
+        "outputTokens": 6126,
+        "wallTimeMs": 160332,
+        "toolCallCount": 30
+      },
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified that the signing target sweeps a distribution/output folder"
+        },
+        {
+          "score": 4,
+          "criterion": "Recognized that multiple projects write to the same output folder"
+        },
+        {
+          "score": 1,
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)"
+        },
+        {
+          "score": 3,
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)"
+        },
+        {
+          "score": 3,
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects"
+        }
+      ],
+      "score": 3
+    },
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "reasoning": "The agent conducted a thorough and methodical investigation, correctly identifying the error, tracing file origins, and discovering the shared Distrib path pattern. The proposed fix is sound. However, the agent completely missed the CAS (content-addressable store) mechanism that makes files read-only via hard links — a critical piece of the root cause analysis. Instead, the agent fabricated an explanation that signing itself makes files read-only, which is likely incorrect and represents a fundamental misunderstanding of the build environment. This gap significantly undermines the completeness of the root cause analysis, even though many other aspects of the investigation were well-executed. The 92 tool calls and 470-second execution time suggest reasonable efficiency for this complexity level.",
+      "metrics": {
+        "inputTokens": 2751731,
+        "turnCount": 45,
+        "errorCount": 0,
+        "outputTokens": 22497,
+        "wallTimeMs": 470031,
+        "toolCallCount": 92
+      },
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed"
+        },
+        {
+          "score": 4,
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)"
+        },
+        {
+          "score": 4,
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path"
+        },
+        {
+          "score": 1,
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps"
+        },
+        {
+          "score": 4,
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects"
+        },
+        {
+          "score": 4,
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder"
+        },
+        {
+          "score": 3,
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files"
+        }
+      ],
+      "score": 3
+    },
+    {
+      "scenario": "Surface — Identify signing failure from binlog",
+      "reasoning": "The agent did a solid job diagnosing the build failure efficiently in just 6 tool calls and ~27 seconds. It correctly identified the core issue (Access Denied on a specific DLL during signing), named the exact file, and provided a reasonable root cause hypothesis (file locked or permissions issue). The analysis was methodical — load binlog, get diagnostics, search for details, get task info. The main gaps are: not explicitly naming the 'DataSources' project in the output, not mentioning the MSB3073 error code explicitly, and not identifying the 'SignCopiedFiles' target. Despite these omissions, the answer is actionable and would help a developer understand and fix the problem.",
+      "metrics": {
+        "inputTokens": 100891,
+        "turnCount": 5,
+        "errorCount": 0,
+        "outputTokens": 900,
+        "wallTimeMs": 27285,
+        "toolCallCount": 6
+      },
+      "rubricScores": [
+        {
+          "score": 4,
+          "criterion": "Identified the MSB3073 error from the signing step"
+        },
+        {
+          "score": 3,
+          "criterion": "Named the project that failed (DataSources)"
+        },
+        {
+          "score": 5,
+          "criterion": "Mentioned that the signing tool failed with an access/permission error"
+        },
+        {
+          "score": 5,
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)"
+        },
+        {
+          "score": 2,
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved"
+        }
+      ],
+      "score": 4
+    }
+  ]
+}

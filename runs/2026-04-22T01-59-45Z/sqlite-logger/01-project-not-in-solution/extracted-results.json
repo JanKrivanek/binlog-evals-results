@@ -1,0 +1,152 @@
+{
+  "scenarios": [
+    {
+      "scenario": "Analysis — Diagnose why a file copy failed during build",
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified that the missing file is from a project output directory"
+        },
+        {
+          "score": 5,
+          "criterion": "Noticed the Debug vs Release path discrepancy (the file was expected in Release but the dependency was built in Debug, or vice versa)"
+        },
+        {
+          "score": 1,
+          "criterion": "Recognized that the referenced project may not be part of the solution, leading to a configuration mismatch"
+        },
+        {
+          "score": 2,
+          "criterion": "Explained the causal chain: project not in solution → wrong configuration → output in wrong path → copy fails"
+        },
+        {
+          "score": 1,
+          "criterion": "Suggested adding the project to the solution as a potential fix"
+        }
+      ],
+      "score": 3,
+      "metrics": {
+        "errorCount": 0,
+        "turnCount": 43,
+        "outputTokens": 18785,
+        "inputTokens": 1925084,
+        "wallTimeMs": 393916,
+        "toolCallCount": 66
+      },
+      "reasoning": "The agent demonstrated strong investigative skills — methodically querying the SQLite database, tracing project IDs, examining global properties, and identifying the Debug/Release mismatch. The proximate cause (configuration mismatch leading to wrong output path) was correctly identified with solid evidence. However, the agent missed the deeper root cause: the referenced project not being in the solution file. This led to an incorrect attribution (_AddOutputPathToGlobalPropertiesToRemove) and incorrect fix suggestions. The investigation was thorough but arrived at the wrong 'why' — it explained what happened but not why it happened at the architectural/solution level."
+    },
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified the specific error (MSB3030 in LrgWindowsFabricHost) with the exact missing file path"
+        },
+        {
+          "score": 5,
+          "criterion": "Traced the missing file to LrgWindowsAppManifest's output directory and noticed it was built under Debug, not Release"
+        },
+        {
+          "score": 5,
+          "criterion": "Verified that LrgWindowsAppManifest is referenced via ProjectReference but is NOT listed in the solution file"
+        },
+        {
+          "score": 5,
+          "criterion": "Explained the full causal chain: project absent from solution → MSBuild doesn't assign it the Release configuration → it uses Debug from a prior build → output lands in Debug path → copy from Release path fails"
+        },
+        {
+          "score": 5,
+          "criterion": "Cross-referenced multiple data points (solution project list, project configurations, output paths, ProjectReference declarations) to confirm the hypothesis"
+        },
+        {
+          "score": 5,
+          "criterion": "Proposed the specific fix: add LrgWindowsAppManifest to the solution file"
+        },
+        {
+          "score": 4,
+          "criterion": "Verified the fix would resolve the issue by confirming that adding the project to the solution would cause it to receive the Release configuration and produce output in the correct path"
+        }
+      ],
+      "score": 5,
+      "metrics": {
+        "errorCount": 0,
+        "turnCount": 55,
+        "outputTokens": 28381,
+        "inputTokens": 3006361,
+        "wallTimeMs": 563160,
+        "toolCallCount": 97
+      },
+      "reasoning": "This is an excellent investigation. The agent methodically queried the binary log database across multiple dimensions, identified the single root error and its cascade effect, built a complete causal chain with specific evidence at every step, and proposed a concrete, actionable fix. The final report is well-structured with a clear summary table, numbered evidence chain, and practical fix instructions. While the agent took 97 tool calls (some due to database locking retries and schema exploration), the overall approach was systematic and thorough. Every claim in the final report is backed by specific query results from the session. The identification of the MSBuild behavior with BuildingSolutionFile=true and missing ProjectConfigurationPlatforms entries demonstrates deep understanding of the build system."
+    },
+    {
+      "scenario": "Surface — Identify build error from binlog (missing file copy)",
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified the MSB3030 error (could not copy file)"
+        },
+        {
+          "score": 5,
+          "criterion": "Named the project that failed (LrgWindowsFabricHost)"
+        },
+        {
+          "score": 3,
+          "criterion": "Included the full file path that was not found"
+        },
+        {
+          "score": 4,
+          "criterion": "Mentioned what the copy target was trying to do (copy a project output file)"
+        },
+        {
+          "score": 4,
+          "criterion": "Noted the target framework (net8.0-windows) involved in the failure"
+        }
+      ],
+      "score": 4,
+      "metrics": {
+        "errorCount": 0,
+        "turnCount": 3,
+        "outputTokens": 716,
+        "inputTokens": 40311,
+        "wallTimeMs": 17824,
+        "toolCallCount": 4
+      },
+      "reasoning": "The agent performed efficiently and accurately. It used only 4 tool calls, completed in under 18 seconds, and produced a well-structured, actionable summary. It correctly identified the error code, the failing projects (with cascading failure analysis), and provided root-cause context. The main minor weakness is the abbreviated file path rather than the full path, and the target framework being implicit in the path rather than explicitly called out. Overall this is solid, well-organized work that gives a developer what they need to diagnose and fix the issue."
+    },
+    {
+      "scenario": "Insight — Determine which projects are in the solution vs referenced",
+      "rubricScores": [
+        {
+          "score": 3,
+          "criterion": "Listed the projects that were built as part of the solution"
+        },
+        {
+          "score": 1,
+          "criterion": "Identified that LrgWindowsAppManifest was referenced but not included in the solution build"
+        },
+        {
+          "score": 1,
+          "criterion": "Noted the configuration (Debug vs Release) used for the missing project vs the referencing project"
+        },
+        {
+          "score": 1,
+          "criterion": "Connected the dots: project not in solution → builds with stale/wrong config → output in wrong path"
+        }
+      ],
+      "score": 1,
+      "metrics": {
+        "errorCount": 0,
+        "turnCount": 4,
+        "outputTokens": 1494,
+        "inputTokens": 59679,
+        "wallTimeMs": 34729,
+        "toolCallCount": 7
+      },
+      "reasoning": "While the agent correctly identified the specific error (MSB3030, missing ApplicationManifest.xml) and ran reasonable queries, it fundamentally misdiagnosed the root cause. It incorrectly claimed LrgWindowsAppManifest was built and succeeded as part of the solution, when it was actually not included in the solution build. This cascading error meant it missed the configuration mismatch and the correct root cause analysis entirely. The agent's truncated query outputs were not handled carefully enough — it should have verified its claims about which projects were in the build rather than assuming. The final analysis is misleading and would not help a developer fix the actual problem."
+    }
+  ],
+  "extractRun": "isolated",
+  "caseName": "01-project-not-in-solution",
+  "configId": "E",
+  "configName": "sqlite-logger"
+}
