@@ -20,6 +20,7 @@ The evaluation infrastructure, test cases, and scoring scripts live in the priva
 | D  | **Copilot + BinlogInsights MCP** | [`BinlogInsights.Mcp`](https://github.com/SergeyTeplyakov/BinlogInsights) — 26 tools |
 | E  | **Copilot + SQLite Logger** | Binlog → SQLite conversion, agent queries with `sqlite3` CLI |
 | F  | **Copilot + Picasso** | [`baronfel.binlog.cli`](https://www.nuget.org/packages/baronfel.binlog.cli) via `dnx` batch mode |
+| G  | **Copilot + AndyG MCP** | [`BinlogMCP`](https://github.com/AndyGerlicher/BinlogMCP) — 52 tools |
 
 ## Test Cases
 
