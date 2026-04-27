@@ -1,0 +1,152 @@
+{
+  "configId": "D",
+  "configName": "binlog-insights-mcp",
+  "scenarios": [
+    {
+      "score": 4,
+      "scenario": "Surface — Identify signing failure from binlog",
+      "metrics": {
+        "inputTokens": 159452,
+        "wallTimeMs": 31799,
+        "errorCount": 0,
+        "outputTokens": 1363,
+        "turnCount": 8,
+        "toolCallCount": 10
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 5
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 2
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 5
+        }
+      ],
+      "reasoning": "The agent did a thorough and efficient investigation, correctly identifying the failing project, target, specific file, and error code. It took a methodical approach by first getting an overview and errors, then drilling into task details and searching for specific signing-related messages. The one weakness is that it didn't precisely characterize the nature of the failure (access/permission error) and instead offered generic speculation about possible causes. Overall, the analysis is solid and actionable."
+    },
+    {
+      "score": 3,
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "metrics": {
+        "inputTokens": 1812303,
+        "wallTimeMs": 359850,
+        "errorCount": 0,
+        "outputTokens": 16887,
+        "turnCount": 31,
+        "toolCallCount": 64
+      },
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 5
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 3
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 2
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 2
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 2
+        }
+      ],
+      "reasoning": "The agent conducted a methodical investigation that correctly identified the surface-level error (MSB3073, DataSources, SignCopiedFiles, StorageLibrary.dll) and the general mechanism (shared output directory causing signing conflicts in a distributed build). However, it missed critical deeper root cause details: the CAS read-only hardlink mechanism, the fact that multiple library projects all share the same Distrib path, and consequently proposed an incorrect fix targeting only DataSources rather than the library projects. The investigation was thorough in its use of tools (64 calls, no errors) and the report is well-structured, but the gaps in understanding the CAS mechanism and multi-project Distrib sharing represent significant analytical shortcomings for a 'complete autonomous investigation.'"
+    },
+    {
+      "score": 2,
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "metrics": {
+        "inputTokens": 149347,
+        "wallTimeMs": 59635,
+        "errorCount": 0,
+        "outputTokens": 3345,
+        "turnCount": 7,
+        "toolCallCount": 21
+      },
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 3
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 1
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 1
+        }
+      ],
+      "reasoning": "The agent was methodical and thorough in its tool usage — it tried multiple approaches to extract data for all projects and correctly identified the Distrib value for DataSources. However, it failed on the two most important analytical conclusions: (1) identifying that projects share the same output directory, and (2) explaining how this sharing causes the signing failure. The agent's investigation was diligent but ultimately produced an incorrect conclusion ('No evidence of shared output directories') and missed the root cause analysis entirely. The output describes symptoms but doesn't deliver the insight the question was designed to elicit."
+    },
+    {
+      "score": 2,
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "metrics": {
+        "inputTokens": 348980,
+        "wallTimeMs": 97248,
+        "errorCount": 0,
+        "outputTokens": 4861,
+        "turnCount": 12,
+        "toolCallCount": 26
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 1
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 3
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 2
+        }
+      ],
+      "reasoning": "The agent conducted a methodical investigation of the binlog, correctly identified the specific failing file and its location in a shared output directory, and produced a coherent (if incorrect) hypothesis about parallel build contention. However, it fundamentally missed the most important insight: that CloudBuild/OneBranch uses CAS hard links that make output-directory files read-only, which is the actual cause of the 'Access is denied' error from signtool. This is the key differentiator between a surface-level analysis and a correct root-cause diagnosis. The agent had access to the OneBranch signing targets file but failed to extract relevant CAS/hard-link information from it. The suggested fixes are partially relevant but don't address the true root cause. The investigation was efficient (26 tool calls, no errors in reasoning flow), but the conclusion was built on an incorrect foundation."
+    }
+  ],
+  "extractRun": "plugin",
+  "caseName": "03-shared-distrib-signing"
+}
