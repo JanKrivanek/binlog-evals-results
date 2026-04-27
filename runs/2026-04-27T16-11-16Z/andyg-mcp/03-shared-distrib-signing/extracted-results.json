@@ -1,0 +1,152 @@
+{
+  "configName": "andyg-mcp",
+  "configId": "G",
+  "caseName": "03-shared-distrib-signing",
+  "extractRun": "plugin",
+  "scenarios": [
+    {
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 1
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 3
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 3
+        }
+      ],
+      "reasoning": "The agent conducted a methodical investigation of the binlog (though with significant inefficiency — 57 tool calls, many returning empty results). It correctly identified the surface-level symptoms: SignCopiedFiles failing on a file in a shared output directory while succeeding on the same file in the project-local obj directory. However, it missed the critical technical insight about CAS hard links in CloudBuild, which is the actual mechanism causing 'Access is denied' on files in the output directory. Instead, it proposed a file-handle-contention theory that, while plausible in generic scenarios, doesn't match the CloudBuild-specific environment. The fix suggestions are reasonable workarounds but don't address the root configuration issue. Overall, the analysis is acceptable but lacks the key domain-specific insight that would make it truly useful.",
+      "score": 3,
+      "metrics": {
+        "turnCount": 39,
+        "toolCallCount": 57,
+        "errorCount": 0,
+        "outputTokens": 11627,
+        "inputTokens": 973901,
+        "wallTimeMs": 278387
+      }
+    },
+    {
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 3
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 3
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 4
+        }
+      ],
+      "reasoning": "The agent took a methodical approach: it examined the schema, queried for errors, properties, and projects, and tried multiple angles to get Distrib values for all projects. It correctly identified the DataSources Distrib value and the signing error details. However, it fell short on the key ask — reporting Distrib for 'each project in the build' — because the binlog only contained evaluation data for one project, and the agent couldn't find alternative ways to extract that information. The shared-output-directory conclusion was inferred rather than proven. The final output is well-structured and honest about limitations, but only partially answers the question. The agent's process was efficient (17 tool calls, no errors, ~80s) and its reasoning was sound, but the incomplete data extraction limits the overall quality.",
+      "score": 3,
+      "metrics": {
+        "turnCount": 10,
+        "toolCallCount": 17,
+        "errorCount": 0,
+        "outputTokens": 3587,
+        "inputTokens": 167013,
+        "wallTimeMs": 79637
+      }
+    },
+    {
+      "scenario": "Surface — Identify signing failure from binlog",
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 5
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 5
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 5
+        }
+      ],
+      "reasoning": "The agent performed an exemplary analysis. It efficiently queried the SQLite database in a methodical manner — first getting the schema, then errors/warnings/failed targets in parallel, then drilling into the specific failed target for details. The final output is well-structured, identifies all key elements (error code context, project, file, target, root cause), and provides actionable suggestions. The agent even noted the nuance that the same DLL signed successfully from the obj directory but failed from the output directory, showing deep analysis of the signing log messages. The approach was efficient with no wasted steps.",
+      "score": 5,
+      "metrics": {
+        "turnCount": 6,
+        "toolCallCount": 10,
+        "errorCount": 0,
+        "outputTokens": 1685,
+        "inputTokens": 92355,
+        "wallTimeMs": 49097
+      }
+    },
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 5
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 4
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 3
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 2
+        }
+      ],
+      "reasoning": "The agent conducted a methodical investigation using 81 tool calls to query the SQLite binlog database. It correctly identified the error (MSB3073), failing project (DataSources), specific file (StorageLibrary.dll), and the shared Distrib folder as the core issue. The investigation was thorough in tracing file ownership through RobocopyFiles and CreateCopiedFileList targets. However, it has a critical gap: completely missing the CAS (content-addressable store) / read-only hard link mechanism, which is central to why files cannot be signed. The agent incorrectly attributed 'Access is denied' to concurrent file locking rather than read-only file attributes from CAS hard links. The proposed fixes are directionally correct but imprecise, and no verification was performed. The work is acceptable but has significant analytical gaps on the root cause mechanism.",
+      "score": 3,
+      "metrics": {
+        "turnCount": 50,
+        "toolCallCount": 81,
+        "errorCount": 0,
+        "outputTokens": 23318,
+        "inputTokens": 2484789,
+        "wallTimeMs": 512080
+      }
+    }
+  ]
+}
