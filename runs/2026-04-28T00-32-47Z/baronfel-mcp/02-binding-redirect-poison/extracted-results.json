@@ -1,0 +1,152 @@
+{
+  "caseName": "02-binding-redirect-poison",
+  "configId": "C",
+  "configName": "baronfel-mcp",
+  "extractRun": "plugin",
+  "scenarios": [
+    {
+      "rubricScores": [
+        {
+          "criterion": "Found the AppConfigFile property value for the net8.0 inner build",
+          "score": 4
+        },
+        {
+          "criterion": "Located the binding redirect entry for DiagnosticSource in App.config",
+          "score": 1
+        },
+        {
+          "criterion": "Explained that the binding redirect specifies newVersion=10.0.0.3 which conflicts with the net8.0 assembly version 10.0.0.0",
+          "score": 1
+        },
+        {
+          "criterion": "Noted that AutoGenerateBindingRedirects is already enabled, making the manual redirect unnecessary",
+          "score": 2
+        }
+      ],
+      "metrics": {
+        "inputTokens": 2180209,
+        "wallTimeMs": 335990,
+        "outputTokens": 15315,
+        "errorCount": 0,
+        "turnCount": 55,
+        "toolCallCount": 80
+      },
+      "scenario": "Insight — Inspect how RAR processes binding redirects across TFMs",
+      "reasoning": "The agent successfully identified the correct project (ID 140) and found two key property values (AppConfigFile = App.config, AutoGenerateBindingRedirects = true). However, it fundamentally failed on the core investigative task: reading the App.config file to find the DiagnosticSource binding redirect. This cascading failure meant the agent could never provide the expected explanation about the binding redirect's newVersion=10.0.0.3 conflicting with the net8.0 assembly version 10.0.0.0. The agent instead constructed an alternative explanation about cross-TFM dependency resolution that doesn't align with the rubric's expected answer. The process was also inefficient — 80 tool calls over 336 seconds with many redundant searches — though the agent did methodically explore multiple angles. The core deliverable was missed.",
+      "score": 2
+    },
+    {
+      "rubricScores": [
+        {
+          "criterion": "Identified MSB3277 as the error code",
+          "score": 5
+        },
+        {
+          "criterion": "Named System.Diagnostics.DiagnosticSource as the conflicting assembly",
+          "score": 5
+        },
+        {
+          "criterion": "Identified DeviceConfigClient as the project with the conflict",
+          "score": 5
+        },
+        {
+          "criterion": "Noted the two conflicting versions (10.0.0.0 vs 10.0.0.3)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned which target framework (net8.0) is affected by the conflict",
+          "score": 1
+        }
+      ],
+      "metrics": {
+        "inputTokens": 574556,
+        "wallTimeMs": 191929,
+        "outputTokens": 4797,
+        "errorCount": 0,
+        "turnCount": 27,
+        "toolCallCount": 28
+      },
+      "scenario": "Surface — Extract MSB3277 assembly version conflict details",
+      "reasoning": "The agent correctly identified the core information about the build failure: error code MSB3277, the conflicting assembly (System.Diagnostics.DiagnosticSource), the affected project (DeviceConfigClient.csproj), and the two conflicting versions (10.0.0.0 vs 10.0.0.3). However, it missed the target framework (net8.0) detail. The process was quite inefficient — the agent made 28 tool calls over ~192 seconds, struggling significantly with finding temporary output files (multiple failed attempts at different paths, full filesystem searches that had to be killed). It eventually succeeded by discovering and querying the sqlite database directly, which was a good recovery strategy. The final answer is mostly correct and actionable, but incomplete on one criterion and achieved through an unnecessarily circuitous path.",
+      "score": 3
+    },
+    {
+      "rubricScores": [
+        {
+          "criterion": "Identified that the conflict involves assembly versions 10.0.0.0 (net8.0) and 10.0.0.3 (net472)",
+          "score": 5
+        },
+        {
+          "criterion": "Recognized that the conflict occurs specifically in the net8.0 build, not net472",
+          "score": 5
+        },
+        {
+          "criterion": "Found that App.config or a binding redirect is involved in the root cause",
+          "score": 5
+        },
+        {
+          "criterion": "Explained that MSBuild's RAR reads App.config for all target frameworks, not just .NET Framework",
+          "score": 5
+        },
+        {
+          "criterion": "Suggested removing the hardcoded binding redirect rather than suppressing the warning",
+          "score": 5
+        }
+      ],
+      "metrics": {
+        "inputTokens": 5257732,
+        "wallTimeMs": 617099,
+        "outputTokens": 26297,
+        "errorCount": 0,
+        "turnCount": 89,
+        "toolCallCount": 113
+      },
+      "scenario": "Analysis — Find root cause of DiagnosticSource version conflict",
+      "reasoning": "The agent performed an excellent and thorough investigation. Despite the complexity of navigating a binlog file and the somewhat circuitous path (113 tool calls, many spent figuring out how to query the SQLite database), the agent ultimately traced the complete causal chain: App.config with a binding redirect → FindAppConfigFile passes it to RAR unconditionally for all TFMs → RAR reads the redirect and expects version 10.0.0.3 → net8.0 DLL has version 10.0.0.0 → MSB3277. The final output is well-structured with a clear table showing the version mismatch, a numbered poisoning chain explaining the mechanism, and two practical fix suggestions. All five rubric criteria are fully satisfied with correct technical details.",
+      "score": 5
+    },
+    {
+      "rubricScores": [
+        {
+          "criterion": "Identified MSB3277 for System.Diagnostics.DiagnosticSource in DeviceConfigClient, specifically in the net8.0 target framework build",
+          "score": 2
+        },
+        {
+          "criterion": "Discovered that the NuGet package ships different assembly versions per TFM: 10.0.0.0 for net8.0 and 10.0.0.3 for net472",
+          "score": 2
+        },
+        {
+          "criterion": "Found the App.config file with a binding redirect that specifies newVersion=10.0.0.3",
+          "score": 1
+        },
+        {
+          "criterion": "Traced how the AppConfigFile MSBuild property feeds into the ResolveAssemblyReference task for ALL target frameworks, including net8.0 where binding redirects don't apply",
+          "score": 1
+        },
+        {
+          "criterion": "Explained that RAR reads the binding redirect and tries to unify to version 10.0.0.3, which conflicts with the actual net8.0 assembly version 10.0.0.0",
+          "score": 1
+        },
+        {
+          "criterion": "Noted that the error message is misleading — it claims other assemblies depend on 10.0.0.3, but this is an artifact of RAR applying the redirect before reporting",
+          "score": 1
+        },
+        {
+          "criterion": "Proposed removing the hardcoded binding redirect from App.config as the specific fix, noting that AutoGenerateBindingRedirects handles this correctly for net472",
+          "score": 1
+        }
+      ],
+      "metrics": {
+        "inputTokens": 11788997,
+        "wallTimeMs": 1800184,
+        "outputTokens": 78971,
+        "errorCount": 1,
+        "turnCount": 161,
+        "toolCallCount": 186
+      },
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "reasoning": "The agent completely failed to deliver a final output, timing out after 1800 seconds with only an incomplete sentence as its 'result.' While it made some progress in early investigation steps (identifying the error, the project, and the TFM), it took an extremely inefficient path with 186 tool calls, repeatedly searching the same data in different ways without converging on a solution. It never found the App.config binding redirect (the root cause), never traced the causal mechanism, and never proposed a fix. The agent's approach was haphazard — bouncing between different queries and tools without a clear investigative strategy. A successful agent would have methodically traced the RAR inputs, found the AppConfigFile property, read the App.config content, and synthesized a clear explanation. This agent got lost in the data and ran out of time.",
+      "score": 1
+    }
+  ]
+}

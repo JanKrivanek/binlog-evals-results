@@ -1,0 +1,152 @@
+{
+  "caseName": "03-shared-distrib-signing",
+  "configId": "D",
+  "configName": "binlog-insights-mcp",
+  "extractRun": "plugin",
+  "scenarios": [
+    {
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 2
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 3
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 3
+        }
+      ],
+      "metrics": {
+        "inputTokens": 416027,
+        "wallTimeMs": 128080,
+        "outputTokens": 5767,
+        "errorCount": 0,
+        "turnCount": 15,
+        "toolCallCount": 27
+      },
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "reasoning": "The agent conducted a methodical investigation of the binlog, correctly identifying the key structural issue: the CopiedFilesToSign list mixes files from a private obj directory with files from a shared output directory, and the failure occurs on the shared directory file. The agent's investigation was somewhat hampered by temp file access issues but it persisted and recovered. However, the agent missed the critical CloudBuild-specific insight about CAS hard links creating read-only files, which is the most likely root cause of 'Access is denied' and better explains the 84% failure rate. Instead, it proposed a generic file-locking race condition theory, which is less precise. The suggestions are partially useful but not fully targeted at the actual root cause. Overall, the analysis is competent but incomplete on the key technical detail.",
+      "score": 3
+    },
+    {
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 3
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 2
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 2
+        }
+      ],
+      "metrics": {
+        "inputTokens": 179530,
+        "wallTimeMs": 57561,
+        "outputTokens": 2647,
+        "errorCount": 0,
+        "turnCount": 9,
+        "toolCallCount": 17
+      },
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "reasoning": "The agent conducted a methodical investigation — it started with an overview and errors, then queried properties, checked projects, evaluations, and performed multiple searches. It successfully identified the Distrib value for DataSources and the signing failure details. However, it fell short on the deeper analytical questions: it couldn't determine Distrib values for dependency projects (despite multiple attempts), only partially identified the shared output directory issue, and did not explain the causal mechanism of the signing conflict. The investigation was competent but the conclusions were incomplete, particularly on the most important insights about shared directories causing the signing failure.",
+      "score": 3
+    },
+    {
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 5
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 4
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 3
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 2
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 2
+        }
+      ],
+      "metrics": {
+        "inputTokens": 1939295,
+        "wallTimeMs": 663780,
+        "outputTokens": 34074,
+        "errorCount": 0,
+        "turnCount": 33,
+        "toolCallCount": 70
+      },
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "reasoning": "The agent conducted a methodical investigation using 70 tool calls with zero errors, efficiently identifying the error, the failing file, and the general mechanism (shared output directory, parallel builds, race condition). The error identification and file tracing were strong. However, the agent missed a critical element — the CloudBuild CAS (content-addressable store) read-only hard link mechanism — which is the actual reason files cannot be signed. This gap undermines both the root cause explanation and the proposed fix. The fix proposal focuses on the wrong project (DataSources rather than the library projects) and lacks verification. The non-determinism explanation is reasonable but incomplete without the CAS insight. Overall, it's a competent but incomplete investigation that gets the surface-level diagnosis right while missing the deeper architectural cause.",
+      "score": 3
+    },
+    {
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 4
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 5
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 5
+        }
+      ],
+      "metrics": {
+        "inputTokens": 294512,
+        "wallTimeMs": 62169,
+        "outputTokens": 2939,
+        "errorCount": 0,
+        "turnCount": 13,
+        "toolCallCount": 20
+      },
+      "scenario": "Surface — Identify signing failure from binlog",
+      "reasoning": "The agent methodically investigated the build failure, starting with an overview and errors, then drilling into specific targets and searching for relevant messages. Despite one minor hiccup with a temp file path, it recovered and continued searching. The final output is comprehensive, well-structured, and accurately identifies all key aspects of the failure: the project, the target, the specific error, the specific file, and provides reasonable hypotheses for the root cause. The agent also added value by noting that SignGeneratedFiles succeeded while SignCopiedFiles failed, pointing toward a file-locking or permission issue rather than a certificate problem.",
+      "score": 5
+    }
+  ]
+}
