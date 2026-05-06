@@ -4,7 +4,7 @@
 
 Public results and dashboard for evaluating MSBuild binary log investigation quality across multiple AI tooling configurations.
 
-The evaluation infrastructure, test cases, and scoring scripts live in the private [JanKrivanek/binlog-evals](https://github.com/JanKrivanek/binlog-evals) repository. This public repo hosts:
+The evaluation infrastructure, test cases, and scoring scripts live in the private [dotnet/binlog-tools-eval](https://github.com/dotnet/binlog-tools-eval) repository. This public repo hosts:
 
 - **`results` branch** — full evaluation data pushed after each pipeline run
 - **GitHub Pages dashboard** — interactive charts deployed to `gh-pages`
