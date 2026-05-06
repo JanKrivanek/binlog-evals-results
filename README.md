@@ -21,6 +21,8 @@ The evaluation infrastructure, test cases, and scoring scripts live in the priva
 | E  | **Copilot + SQLite Logger** | Binlog → SQLite conversion, agent queries with `sqlite3` CLI |
 | F  | **Copilot + Picasso** | [`baronfel.binlog.cli`](https://www.nuget.org/packages/baronfel.binlog.cli) via `dnx` batch mode |
 | G  | **Copilot + AndyG MCP** | [`BinlogMCP`](https://github.com/AndyGerlicher/BinlogMCP) — 52 tools |
+| H  | **Copilot + BinlogMcp** | [`BinlogMcp`](https://www.nuget.org/packages/BinlogMcp) — MSBuildStructuredLog MCP server |
+| I  | **Copilot + AITools.BinlogMcp** | [`AITools.BinlogMcp`](https://dev.azure.com/dnceng/public/_artifacts/feed/dotnet-eng/NuGet/AITools.BinlogMcp) — dotnet/ai-tools MCP server |
 
 ## Test Cases
 
