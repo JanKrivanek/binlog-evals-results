@@ -1,0 +1,152 @@
+{
+  "configName": "andyg-mcp",
+  "extractRun": "plugin",
+  "caseName": "03-shared-distrib-signing",
+  "configId": "G",
+  "scenarios": [
+    {
+      "score": 3,
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "metrics": {
+        "inputTokens": 201143,
+        "toolCallCount": 22,
+        "errorCount": 0,
+        "wallTimeMs": 102132,
+        "turnCount": 11,
+        "outputTokens": 4828
+      },
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 2
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 3
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 4
+        }
+      ],
+      "reasoning": "The agent did a competent job finding the Distrib value for DataSources and tracing the signing failure to the SignCopiedFiles target. The root cause explanation is reasonable. However, the task explicitly asked for Distrib 'for each project in the build' and the agent fell short — it found only one evaluation existed but didn't exhaust other avenues (GlobalProperties temp file, ProjectPropertyTimeline table) to find Distrib values for dependency projects. The shared output directory conclusion, while likely correct, was more inferred than proven. The investigation was methodical but incomplete on the cross-project comparison aspect."
+    },
+    {
+      "score": 2,
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "metrics": {
+        "inputTokens": 2006519,
+        "toolCallCount": 60,
+        "errorCount": 0,
+        "wallTimeMs": 342433,
+        "turnCount": 56,
+        "outputTokens": 14802
+      },
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 5
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 2
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 2
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 2
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 2
+        }
+      ],
+      "reasoning": "The agent performed a methodical initial investigation, efficiently querying the SQLite database to find the error, project, target, and failing file. This first phase was excellent. However, the deeper analysis fell short in several critical areas: (1) it completely missed the CAS/hard-link mechanism that makes files read-only — the actual root cause of 'Access is denied'; (2) it incorrectly attributed the file placement to ConfigurationLinterService rather than the library projects (StorageLibrary, Common) that share the same Distrib path; (3) the proposed fix targets the wrong project and doesn't address the actual pattern of library projects inappropriately having Distrib/Robocopy settings; (4) no verification was performed. While the agent showed good investigative technique and correctly identified the surface-level symptoms (shared Distrib folder, parallel builds, race conditions), the analysis missed the deeper architectural and infrastructure-level causes that the rubric requires."
+    },
+    {
+      "score": 5,
+      "scenario": "Surface — Identify signing failure from binlog",
+      "metrics": {
+        "inputTokens": 215377,
+        "toolCallCount": 14,
+        "errorCount": 0,
+        "wallTimeMs": 59512,
+        "turnCount": 14,
+        "outputTokens": 2521
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 5
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 5
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 4
+        }
+      ],
+      "reasoning": "The agent performed an efficient and methodical investigation. It started by examining the SQLite database structure, queried the Errors table to find the MSB3073 error, then progressively narrowed down to find the specific SignTool error message and the exact file that failed. The final output is clear, well-structured, and accurate — identifying the error code, project, root cause (Access is denied), specific file (StorageLibrary.dll), and the signing target involved. The agent also provided reasonable hypotheses for why the access was denied. The investigation was completed in a reasonable number of steps with no errors."
+    },
+    {
+      "score": 2,
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "metrics": {
+        "inputTokens": 704134,
+        "toolCallCount": 39,
+        "errorCount": 0,
+        "wallTimeMs": 170465,
+        "turnCount": 26,
+        "outputTokens": 8212
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 5
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 1
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 3
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 3
+        }
+      ],
+      "reasoning": "The agent performed thorough investigative work, making good use of the SQLite database to query targets, messages, and properties from the binlog. It correctly identified the sweeping of the distrib folder and the shared output directory. However, the fundamental diagnosis is wrong: the agent attributed the failure to a file locking race condition from concurrent copy operations, when the actual root cause involves CloudBuild's CAS hard links creating read-only files that signtool cannot modify. This is a critical misdiagnosis — the 'Access is denied' error in CloudBuild is a well-known symptom of CAS hard-linked files, not concurrent file access. The non-determinism explanation and suggested fixes follow from this incorrect premise. While the investigation methodology was solid, the wrong conclusion significantly undermines the value of the output."
+    }
+  ]
+}
