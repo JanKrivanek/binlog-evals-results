@@ -1,0 +1,152 @@
+{
+  "caseName": "03-shared-distrib-signing",
+  "extractRun": "plugin",
+  "configName": "aitools-mcp",
+  "scenarios": [
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "metrics": {
+        "inputTokens": 634816,
+        "turnCount": 16,
+        "errorCount": 0,
+        "outputTokens": 20677,
+        "wallTimeMs": 404360,
+        "toolCallCount": 46
+      },
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 5
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 5
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 5
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 2
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 2
+        }
+      ],
+      "reasoning": "The agent performed excellent diagnostic work on criteria 1-3: finding the exact error, tracing file ownership, and discovering the shared Distrib paths. The investigation was methodical and well-structured, using 46 tool calls efficiently with zero errors. However, the agent missed a critical piece of the root cause — the CAS (Content-Addressable Store) mechanism that creates read-only hard links — instead attributing read-only status to the signing tool itself. This incorrect root cause understanding cascaded into a less accurate non-determinism explanation and a more complex fix than necessary. The proposed fix would likely work but doesn't match the expected elegant solution of simply removing Distrib/Robocopy from library projects. The fix was also not verified against the binlog. Overall, this is solid diagnostic work with a significant gap in the deepest layer of root cause analysis.",
+      "score": 3
+    },
+    {
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "metrics": {
+        "inputTokens": 72776,
+        "turnCount": 4,
+        "errorCount": 0,
+        "outputTokens": 1618,
+        "wallTimeMs": 32598,
+        "toolCallCount": 9
+      },
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 1
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 2
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 2
+        }
+      ],
+      "reasoning": "The agent efficiently found the Distrib property for DataSources and correctly identified the signing error details. However, it critically failed on the core question: checking Distrib for ALL projects in the build and determining whether multiple projects share the same output directory. When binlog_projects returned only 1 project, the agent accepted this without further investigation, missing the Common and StorageLibrary projects entirely. This led to a speculative and partially incorrect root cause explanation (blaming concurrent external builds rather than intra-build shared output directories). The agent answered half the question well but missed the most important analytical finding the task was driving toward.",
+      "score": 2
+    },
+    {
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "metrics": {
+        "inputTokens": 179991,
+        "turnCount": 8,
+        "errorCount": 0,
+        "outputTokens": 3126,
+        "wallTimeMs": 69280,
+        "toolCallCount": 18
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 1
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 3
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 2
+        }
+      ],
+      "reasoning": "The agent conducted a methodical investigation — efficiently navigating path issues, querying errors, searching for relevant targets, and examining the signing infrastructure. The tool usage was competent and the investigation flow was logical. However, the agent missed the most critical insight: the CloudBuild CAS hard-link mechanism that causes read-only files and 'Access is denied' errors. Instead, it constructed a file-locking race narrative that, while internally consistent, doesn't match the actual root cause. The agent correctly identified relevant surface-level facts (the distrib folder, StorageLibrary.dll appearing in multiple contexts, the cross-project output configuration) but failed to connect them to the underlying CloudBuild infrastructure behavior. The recommended fixes are generic workarounds rather than targeted solutions. For a diagnostic task where root cause accuracy is paramount, missing the CAS hard-link explanation is a significant shortcoming.",
+      "score": 2
+    },
+    {
+      "scenario": "Surface — Identify signing failure from binlog",
+      "metrics": {
+        "inputTokens": 89242,
+        "turnCount": 5,
+        "errorCount": 0,
+        "outputTokens": 973,
+        "wallTimeMs": 22821,
+        "toolCallCount": 8
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 4
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 5
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 5
+        }
+      ],
+      "reasoning": "The agent performed an efficient and thorough diagnosis of the build failure. It recovered quickly from the initial path issue (finding the correct absolute path), then systematically used binlog tools to identify the error, project, target, and specific file. The final output is well-structured, accurate, and actionable — identifying the root cause (Access is denied on a specific DLL during signing), the context (SignCopiedFiles target, DataSources.csproj), and offering plausible explanations. The only minor gap is not explicitly naming the MSB3073 error code in the output, but the analysis is otherwise comprehensive and correct. The agent completed the task efficiently in 8 tool calls and 22.8 seconds with zero errors.",
+      "score": 5
+    }
+  ],
+  "configId": "I"
+}
