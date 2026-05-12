@@ -1,0 +1,152 @@
+{
+  "extractRun": "plugin",
+  "caseName": "03-shared-distrib-signing",
+  "scenarios": [
+    {
+      "score": 3,
+      "rubricScores": [
+        {
+          "score": 3,
+          "criterion": "Identified the MSB3073 error from the signing step"
+        },
+        {
+          "score": 2,
+          "criterion": "Named the project that failed (DataSources)"
+        },
+        {
+          "score": 5,
+          "criterion": "Mentioned that the signing tool failed with an access/permission error"
+        },
+        {
+          "score": 5,
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)"
+        },
+        {
+          "score": 2,
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved"
+        }
+      ],
+      "scenario": "Surface — Identify signing failure from binlog",
+      "metrics": {
+        "turnCount": 11,
+        "wallTimeMs": 69696,
+        "outputTokens": 2063,
+        "toolCallCount": 11,
+        "errorCount": 0,
+        "inputTokens": 164928
+      },
+      "reasoning": "The agent took a methodical approach — querying the sqlite database for errors, then drilling into signing-related messages and the specific failing file. It correctly identified the core issue (access denied on a specific DLL during code signing) and provided reasonable hypotheses. However, it omitted several important technical details: the MSB3073 error code, the specific project name (DataSources), and the signing target (SignCopiedFiles). The investigation was efficient (11 tool calls, no errors), but the final output trades some specificity for readability, missing key details that would be important for a developer debugging this issue."
+    },
+    {
+      "score": 3,
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed"
+        },
+        {
+          "score": 3,
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)"
+        },
+        {
+          "score": 2,
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path"
+        },
+        {
+          "score": 2,
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps"
+        },
+        {
+          "score": 3,
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects"
+        },
+        {
+          "score": 2,
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder"
+        },
+        {
+          "score": 2,
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files"
+        }
+      ],
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "metrics": {
+        "turnCount": 48,
+        "wallTimeMs": 424006,
+        "outputTokens": 19898,
+        "toolCallCount": 81,
+        "errorCount": 0,
+        "inputTokens": 2489732
+      },
+      "reasoning": "The agent performed a methodical initial investigation, correctly identifying the error, project, target, and failing file with strong evidence from the binlog database. However, the investigation falls short in deeper analysis: it missed that multiple projects share the same Distrib path, didn't identify the CAS/hard-link mechanism for read-only files, and proposed fixes targeting the wrong project. The non-determinism explanation is plausible but somewhat speculative. The agent took an efficient path with 81 tool calls over ~7 minutes, but some queries were redundant due to schema discovery issues. The final report is well-structured and readable, but several conclusions are inferred rather than verified, and key aspects expected by the rubric were missed."
+    },
+    {
+      "score": 2,
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified that the signing target sweeps a distribution/output folder"
+        },
+        {
+          "score": 4,
+          "criterion": "Recognized that multiple projects write to the same output folder"
+        },
+        {
+          "score": 1,
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)"
+        },
+        {
+          "score": 3,
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)"
+        },
+        {
+          "score": 2,
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects"
+        }
+      ],
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "metrics": {
+        "turnCount": 15,
+        "wallTimeMs": 171351,
+        "outputTokens": 6954,
+        "toolCallCount": 26,
+        "errorCount": 0,
+        "inputTokens": 384904
+      },
+      "reasoning": "The agent conducted a methodical investigation of the binlog, making 24 SQL queries to systematically explore the data. It correctly identified the surface-level mechanics: the signing target sweeps a shared distrib folder and picks up files from other projects. However, it fundamentally misdiagnosed the root cause. Instead of identifying the CloudBuild/OneBranch CAS hard-link mechanism (where cached files are read-only hard links that signtool cannot modify in place), it attributed the failure to a process-level file lock from parallel builds. This is a significant error because 'Access is denied' from signtool on a read-only CAS hard link is a well-known pattern in OneBranch builds, and the fix involves configuration changes to avoid signing CAS-linked files, not just timing adjustments. The suggested fixes, while somewhat helpful as workarounds, don't address the actual root cause."
+    },
+    {
+      "score": 2,
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Found the Distrib property value for the DataSources project"
+        },
+        {
+          "score": 2,
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path"
+        },
+        {
+          "score": 1,
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)"
+        },
+        {
+          "score": 1,
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects"
+        }
+      ],
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "metrics": {
+        "turnCount": 15,
+        "wallTimeMs": 104488,
+        "outputTokens": 4731,
+        "toolCallCount": 25,
+        "errorCount": 0,
+        "inputTokens": 268198
+      },
+      "reasoning": "The agent successfully found the Distrib property for DataSources and provided a reasonable description of the signing failure mechanics. However, it failed on the two most important analytical aspects of the task: identifying that multiple projects share an output directory and explaining how that sharing causes the signing conflict. The agent gave up too easily when EvaluationProperties didn't have data for the other projects, missing the ProjectPropertyTimeline table that was visible in the schema. The conclusion of 'no overlap detected' is likely incorrect and represents a significant analytical failure. The agent did good mechanical work (efficient SQL queries, parallel execution) but lacked the investigative depth needed to answer the core questions."
+    }
+  ],
+  "configName": "andyg-mcp",
+  "configId": "G"
+}

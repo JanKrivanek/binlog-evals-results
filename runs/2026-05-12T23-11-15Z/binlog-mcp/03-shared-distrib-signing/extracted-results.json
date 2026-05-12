@@ -1,0 +1,152 @@
+{
+  "caseName": "03-shared-distrib-signing",
+  "configName": "binlog-mcp",
+  "scenarios": [
+    {
+      "reasoning": "The agent did thorough, systematic work investigating the binlog. It correctly identified all four projects, found the Distrib property values for each, noted the subtle difference in Common's relative path, and clearly identified the shared output directory. The investigation was methodical — loading the binlog, searching for errors, finding project contexts, reading csproj files, and examining property evaluations. The main weakness is in criterion 4: the explanation of how shared directories cause the signing conflict is hedged and somewhat contradictory, undermining what is otherwise a strong analysis. The agent also recovered well from file path format errors when reading embedded files. Overall, this is good work with a clear, well-structured output.",
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Found the Distrib property value for the DataSources project"
+        },
+        {
+          "score": 5,
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path"
+        },
+        {
+          "score": 5,
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)"
+        },
+        {
+          "score": 3,
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects"
+        }
+      ],
+      "score": 4,
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "metrics": {
+        "inputTokens": 427335,
+        "outputTokens": 5528,
+        "toolCallCount": 39,
+        "wallTimeMs": 130217,
+        "errorCount": 0,
+        "turnCount": 14
+      }
+    },
+    {
+      "reasoning": "The agent performed an efficient 3-step investigation (search for errors, then drill into the specific subtree) and produced a clear, well-structured diagnosis. It correctly identified the project, the target, the specific file, and the nature of the error (access denied). It even went beyond the basics by noting that the same DLL signed successfully from a different directory, suggesting the root cause was file locking or permissions rather than an inherent problem with the assembly. The only notable gap is not explicitly calling out the MSB3073 error code, which is a minor but relevant detail. Overall, this is a good, actionable diagnosis delivered with minimal tool calls.",
+      "rubricScores": [
+        {
+          "score": 3,
+          "criterion": "Identified the MSB3073 error from the signing step"
+        },
+        {
+          "score": 5,
+          "criterion": "Named the project that failed (DataSources)"
+        },
+        {
+          "score": 5,
+          "criterion": "Mentioned that the signing tool failed with an access/permission error"
+        },
+        {
+          "score": 5,
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)"
+        },
+        {
+          "score": 5,
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved"
+        }
+      ],
+      "score": 4,
+      "scenario": "Surface — Identify signing failure from binlog",
+      "metrics": {
+        "inputTokens": 55519,
+        "outputTokens": 526,
+        "toolCallCount": 3,
+        "wallTimeMs": 17121,
+        "errorCount": 0,
+        "turnCount": 3
+      }
+    },
+    {
+      "reasoning": "The agent performed a methodical investigation with zero errors across 39 tool calls, correctly identifying the error, the failing file, and the shared Distrib path as the core mechanism. However, it missed two critical aspects: (1) the CAS read-only hard link mechanism that actually makes files unsignable (criterion 4, scored 1), and (2) Common.csproj also sharing the same Distrib path (criterion 3). These gaps mean the root cause analysis is incomplete — the agent describes symptoms (Access is denied, race condition) without fully understanding the underlying mechanism (CAS read-only hard links). The proposed fix is directionally correct but incomplete (missing Common.csproj changes). Overall, the investigation is competent but has significant analytical gaps.",
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed"
+        },
+        {
+          "score": 4,
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)"
+        },
+        {
+          "score": 3,
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path"
+        },
+        {
+          "score": 1,
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps"
+        },
+        {
+          "score": 3,
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects"
+        },
+        {
+          "score": 3,
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder"
+        },
+        {
+          "score": 3,
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files"
+        }
+      ],
+      "score": 3,
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "metrics": {
+        "inputTokens": 787068,
+        "outputTokens": 12718,
+        "toolCallCount": 39,
+        "wallTimeMs": 281335,
+        "errorCount": 0,
+        "turnCount": 20
+      }
+    },
+    {
+      "reasoning": "The agent performed solid investigative work — efficiently navigating the binlog, identifying the wildcard glob sweep, and recognizing the shared output directory. However, it missed the central insight: in CloudBuild, 'Access is denied' from signtool is caused by CAS hard links making cached files read-only, not by parallel process contention. This is a well-known CloudBuild behavior, and missing it means the root cause diagnosis is fundamentally wrong. The fixes suggested would partially help (by avoiding signing files the project doesn't own) but for the wrong reasons. The agent built a plausible-sounding but incorrect narrative around concurrent access.",
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified that the signing target sweeps a distribution/output folder"
+        },
+        {
+          "score": 4,
+          "criterion": "Recognized that multiple projects write to the same output folder"
+        },
+        {
+          "score": 1,
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)"
+        },
+        {
+          "score": 3,
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)"
+        },
+        {
+          "score": 3,
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects"
+        }
+      ],
+      "score": 2,
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "metrics": {
+        "inputTokens": 361182,
+        "outputTokens": 4271,
+        "toolCallCount": 20,
+        "wallTimeMs": 104075,
+        "errorCount": 0,
+        "turnCount": 13
+      }
+    }
+  ],
+  "configId": "H",
+  "extractRun": "plugin"
+}
