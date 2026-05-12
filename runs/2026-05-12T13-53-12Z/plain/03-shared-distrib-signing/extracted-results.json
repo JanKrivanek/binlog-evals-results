@@ -1,0 +1,152 @@
+{
+  "configId": "A",
+  "caseName": "03-shared-distrib-signing",
+  "extractRun": "baseline",
+  "scenarios": [
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "score": 3,
+      "metrics": {
+        "toolCallCount": 94,
+        "inputTokens": 2964725,
+        "turnCount": 57,
+        "errorCount": 0,
+        "wallTimeMs": 503550,
+        "outputTokens": 23110
+      },
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 4
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 2
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 2
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 2
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 2
+        }
+      ],
+      "reasoning": "The agent conducted a thorough investigation (94 tool calls, systematic exploration of the sqlite database) and correctly identified the high-level problem: multiple projects writing to the same output folder causing signing conflicts during parallel builds. It correctly found the error, project, target, and file. However, it made critical errors in attribution — blaming ConfigurationLinterService (which isn't in the build) instead of sibling library projects, and identifying the wrong read-only mechanism (signing vs CAS). The proposed fix is in the right direction but targets the wrong project. The work demonstrates competent investigative process but reaches partially incorrect conclusions."
+    },
+    {
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "score": 4,
+      "metrics": {
+        "toolCallCount": 17,
+        "inputTokens": 177711,
+        "turnCount": 11,
+        "errorCount": 0,
+        "wallTimeMs": 85553,
+        "outputTokens": 4014
+      },
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 4
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 3
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 4
+        }
+      ],
+      "reasoning": "The agent took a methodical approach, systematically querying the SQLite database to extract Distrib properties, OutDir values, target results, and error messages. It correctly found the core data points (Distrib value, signing error, affected files) and produced a well-structured, readable summary with a clear root cause analysis. The 17 tool calls in 85 seconds was reasonable for the investigation complexity. The main weakness is that some claims about the shared directory are based on inference rather than direct evidence from the binlog, and the agent uses qualifiers like 'likely' appropriately but could have been more explicit about what's proven vs. inferred. Overall, this is solid analytical work with clear findings and actionable recommendations."
+    },
+    {
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "score": 3,
+      "metrics": {
+        "toolCallCount": 24,
+        "inputTokens": 372606,
+        "turnCount": 13,
+        "errorCount": 0,
+        "wallTimeMs": 155607,
+        "outputTokens": 7229
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 2
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 3
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 3
+        }
+      ],
+      "reasoning": "The agent conducted a thorough and methodical investigation of the build.sqlite database, correctly identifying the structural problem (signing target sweeping a shared output folder and picking up files from other projects). However, it missed the key CloudBuild-specific mechanism — CAS hard links making files read-only — instead attributing the failure to a generic parallel-build file-locking race condition. This is a plausible but incorrect diagnosis for the OneBranch/CloudBuild environment. The investigation quality was good (efficient SQL queries, logical progression), but the final diagnosis doesn't match the expected root cause. The fix suggestions are partially helpful but don't address the actual underlying issue."
+    },
+    {
+      "scenario": "Surface — Identify signing failure from binlog",
+      "score": 3,
+      "metrics": {
+        "toolCallCount": 9,
+        "inputTokens": 85521,
+        "turnCount": 6,
+        "errorCount": 0,
+        "wallTimeMs": 45923,
+        "outputTokens": 1671
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 4
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 3
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 4
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 3
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 2
+        }
+      ],
+      "reasoning": "The agent took an efficient approach by querying the SQLite database systematically - checking errors, diagnostics, messages, and targets. It correctly identified the core issue as a signing failure with MSB3073. However, the final output includes several specific details (39 of 40 files, 'Access is denied', Cert ID 143360005, StorageLibrary.dll in ConfigurationLinterService) that are not clearly supported by the visible tool outputs in the timeline. These may come from full (untruncated) tool results, or they may be hallucinated details. The agent also omitted the SignCopiedFiles target name despite finding it. The diagnosis is plausible and directionally correct, but the specificity of unverifiable claims tempers confidence in accuracy."
+    }
+  ],
+  "configName": "plain"
+}
