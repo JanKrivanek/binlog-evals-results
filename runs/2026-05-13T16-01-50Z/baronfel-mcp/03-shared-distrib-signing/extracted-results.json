@@ -1,0 +1,152 @@
+{
+  "caseName": "03-shared-distrib-signing",
+  "scenarios": [
+    {
+      "metrics": {
+        "inputTokens": 97785,
+        "turnCount": 5,
+        "outputTokens": 1077,
+        "errorCount": 0,
+        "toolCallCount": 7,
+        "wallTimeMs": 35689
+      },
+      "reasoning": "The agent performed an efficient and thorough investigation. It took a methodical approach: load binlog → get diagnostics → search for signing context → get target details → get task details. It made no errors, used only 7 tool calls, and completed in under 36 seconds. The final output is clear, well-structured, and accurately identifies all key details: the MSB3073 error, the DataSources.csproj project, the SignCopiedFiles target, the 'Access is denied' error, the specific DLL that failed, and even provides useful context (39 of 40 files signed successfully, the same DLL signed fine from obj directory). The suggested likely causes are reasonable and actionable.",
+      "score": 5,
+      "scenario": "Surface — Identify signing failure from binlog",
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 5
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 5
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 5
+        }
+      ]
+    },
+    {
+      "metrics": {
+        "inputTokens": 131364,
+        "turnCount": 6,
+        "outputTokens": 3729,
+        "errorCount": 0,
+        "toolCallCount": 16,
+        "wallTimeMs": 78541
+      },
+      "reasoning": "The agent took a methodical approach: it loaded the binlog, listed projects, got diagnostics, attempted evaluations for all four projects, and searched broadly for Distrib and output directory information. It correctly identified the Distrib value for DataSources and provided a plausible explanation for the signing failure. However, the core ask — 'check what the Distrib property is set to for each project' — was only answered for one of four projects, with the others reported as unavailable. The agent could have tried harder to extract this information through alternative search strategies. The shared-output-directory conclusion, while reasonable, was inferred rather than proven. The output is useful and well-structured but falls short of fully answering the question.",
+      "score": 3,
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 3
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 3
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 4
+        }
+      ]
+    },
+    {
+      "metrics": {
+        "inputTokens": 252681,
+        "turnCount": 10,
+        "outputTokens": 4448,
+        "errorCount": 0,
+        "toolCallCount": 20,
+        "wallTimeMs": 105849
+      },
+      "reasoning": "The agent performed competent investigation — it efficiently navigated the binlog, found the failing target, identified the two signing locations, and produced a coherent narrative. However, it fundamentally missed the core root cause: CAS hard links in CloudBuild making distribution files read-only. Instead, it constructed a plausible but incorrect theory about concurrent file locking from parallel builds, which it never verified from the data (the binlog only had 2 nodes and no evidence of concurrent signing). The 84% failure rate clue (suggesting cache hit rates) was not explored. Missing the CAS/read-only angle is a critical gap since it's the actual mechanism behind the 'Access is denied' error in this CloudBuild environment.",
+      "score": 2,
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 1
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 2
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 3
+        }
+      ]
+    },
+    {
+      "metrics": {
+        "inputTokens": 1927620,
+        "turnCount": 37,
+        "outputTokens": 22435,
+        "errorCount": 0,
+        "toolCallCount": 78,
+        "wallTimeMs": 459681
+      },
+      "reasoning": "The agent conducted a thorough and methodical investigation of the binlog, correctly identifying the error, tracing file origins, and discovering the shared Distrib path pattern across projects. The investigation was well-structured with 78 tool calls over ~460 seconds. However, the critical miss is the CAS (content-addressable store) read-only hard links mechanism — the agent incorrectly attributed the 'Access is denied' error to concurrent file locking rather than read-only file attributes from CloudBuild's CAS. This cascades into a partially incorrect non-determinism explanation and a fix that addresses symptoms (distrib scanning) rather than the full root cause (library projects shouldn't be copying to the shared folder at all). The output is well-organized and clearly presented, but the incomplete root cause analysis prevents a higher score.",
+      "score": 3,
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 5
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 4
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 5
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 3
+        }
+      ]
+    }
+  ],
+  "configId": "C",
+  "extractRun": "plugin",
+  "configName": "baronfel-mcp"
+}

@@ -1,0 +1,152 @@
+{
+  "caseName": "03-shared-distrib-signing",
+  "configName": "plain",
+  "extractRun": "baseline",
+  "scenarios": [
+    {
+      "scenario": "Surface — Identify signing failure from binlog",
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 1
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 1
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 5
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 1
+        }
+      ],
+      "metrics": {
+        "turnCount": 7,
+        "toolCallCount": 9,
+        "wallTimeMs": 50308,
+        "errorCount": 0,
+        "outputTokens": 1642,
+        "inputTokens": 116648
+      },
+      "reasoning": "The agent took a methodical approach using string extraction from the gzipped binlog and progressively refined grep patterns to home in on the error. It successfully identified the core issue (access denied on StorageLibrary.dll during signing) and provided a reasonable hypothesis about the cause. However, it missed important details: the MSB3073 error code, the DataSources project name, and the SignCopiedFiles target. The approach of using `strings | grep` was pragmatic given the binary format, but it limited the agent's ability to extract structured MSBuild information. The output is partially correct and useful but incomplete.",
+      "score": 3
+    },
+    {
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 1
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 2
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 2
+        }
+      ],
+      "metrics": {
+        "turnCount": 20,
+        "toolCallCount": 20,
+        "wallTimeMs": 129234,
+        "errorCount": 0,
+        "outputTokens": 4822,
+        "inputTokens": 421484
+      },
+      "reasoning": "The agent demonstrated competent investigation technique — methodically extracting strings from the binlog, searching for relevant keywords, and building a coherent narrative. It correctly identified the general area of failure (signing files in the distrib/output folder vs. the obj folder). However, it missed the most critical diagnosis: the CloudBuild CAS hard link issue, which is the canonical explanation for 'Access is denied' on files in distrib folders in `F:\\dbs\\` CloudBuild environments. The race condition theory it proposed, while internally coherent, is likely wrong. Because the root cause identification is the core value of this diagnostic task, and the agent missed it entirely, the overall quality is poor despite good investigative mechanics.",
+      "score": 2
+    },
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 5
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 4
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 4
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 2
+        }
+      ],
+      "metrics": {
+        "turnCount": 62,
+        "toolCallCount": 75,
+        "wallTimeMs": 492764,
+        "errorCount": 0,
+        "outputTokens": 19304,
+        "inputTokens": 2905559
+      },
+      "reasoning": "The agent performed a solid investigation of the binlog, correctly identifying the error, failing project/target, specific file, and the shared output path pattern across projects. The methodology was systematic and used appropriate tooling. However, the investigation has a critical gap: the agent completely missed the CAS (content-addressable store) mechanism that makes files read-only via hard links, instead fabricating an explanation about SignTool setting read-only attributes. This incorrect root cause attribution undermines the non-determinism explanation and makes the fix incomplete. The agent also only addressed StorageLibrary in the fix proposal, not Common. The work is acceptable but falls short of the deeper investigation needed to fully understand and resolve the issue.",
+      "score": 3
+    },
+    {
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 3
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 4
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 5
+        }
+      ],
+      "metrics": {
+        "turnCount": 16,
+        "toolCallCount": 27,
+        "wallTimeMs": 122715,
+        "errorCount": 0,
+        "outputTokens": 4503,
+        "inputTokens": 315231
+      },
+      "reasoning": "The agent performed a solid analysis of the binlog file, correctly identifying the Distrib property for DataSources, the shared output directory problem, and the root cause of the signing failure. The approach was methodical but somewhat meandering — 27 tool calls over 122 seconds with some wasted steps (failed tool installations, permission errors on doublewrites output, grep on non-existent temporary files). The agent recovered from these setbacks well. The main gap is the inability to show the exact Distrib values for the dependency projects, though the agent honestly acknowledged this limitation and provided strong indirect evidence. The final output is well-structured, accurate, and includes actionable fix recommendations.",
+      "score": 4
+    }
+  ],
+  "configId": "A"
+}
