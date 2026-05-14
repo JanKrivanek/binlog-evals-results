@@ -1,0 +1,152 @@
+{
+  "caseName": "01-project-not-in-solution",
+  "configName": "andyg-mcp",
+  "configId": "G",
+  "extractRun": "plugin",
+  "scenarios": [
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "reasoning": "The agent completely failed the task. It spent the entire 900-second timeout (25 tool calls) trying to get the MCP binlog analysis tool to communicate via JSON-RPC stdio, but never succeeded. It didn't try alternative approaches such as using 'dotnet build' CLI tools to replay/read binlogs, using the structured log viewer, running 'strings' on the binary file, or other creative workarounds. The final output is just a fragment ('Good, there's a Release build. Let me use that directly:') — not a structured report, not even a partial analysis. None of the seven rubric criteria were met in any way.",
+      "score": 1,
+      "rubricScores": [
+        {
+          "score": 1,
+          "criterion": "Identified the specific error (MSB3030 in LrgWindowsFabricHost) with the exact missing file path"
+        },
+        {
+          "score": 1,
+          "criterion": "Traced the missing file to LrgWindowsAppManifest's output directory and noticed it was built under Debug, not Release"
+        },
+        {
+          "score": 1,
+          "criterion": "Verified that LrgWindowsAppManifest is referenced via ProjectReference but is NOT listed in the solution file"
+        },
+        {
+          "score": 1,
+          "criterion": "Explained the full causal chain: project absent from solution → MSBuild doesn't assign it the Release configuration → it uses Debug from a prior build → output lands in Debug path → copy from Release path fails"
+        },
+        {
+          "score": 1,
+          "criterion": "Cross-referenced multiple data points (solution project list, project configurations, output paths, ProjectReference declarations) to confirm the hypothesis"
+        },
+        {
+          "score": 1,
+          "criterion": "Proposed the specific fix: add LrgWindowsAppManifest to the solution file"
+        },
+        {
+          "score": 1,
+          "criterion": "Verified the fix would resolve the issue by confirming that adding the project to the solution would cause it to receive the Release configuration and produce output in the correct path"
+        }
+      ],
+      "metrics": {
+        "inputTokens": 395319,
+        "toolCallCount": 25,
+        "errorCount": 1,
+        "wallTimeMs": 905023,
+        "turnCount": 24,
+        "outputTokens": 6288
+      }
+    },
+    {
+      "scenario": "Insight — Determine which projects are in the solution vs referenced",
+      "reasoning": "The agent did substantial investigative work using the MCP binlog tools, correctly identified the error (MSB3030), the missing file, and importantly that LrgWindowsAppManifest is not directly in the solution but built via ProjectReference. However, it fell short on the deeper diagnostic reasoning: it didn't identify the configuration mismatch between how the referencing project expects the output (Release path) and how the referenced project might actually build (potentially with wrong/default config due to not being in the solution). The agent had the evidence (N/A configuration for LrgWindowsAppManifest, absence from metaproj) but didn't synthesize it into the correct root cause explanation.",
+      "score": 3,
+      "rubricScores": [
+        {
+          "score": 3,
+          "criterion": "Listed the projects that were built as part of the solution"
+        },
+        {
+          "score": 4,
+          "criterion": "Identified that LrgWindowsAppManifest was referenced but not included in the solution build"
+        },
+        {
+          "score": 2,
+          "criterion": "Noted the configuration (Debug vs Release) used for the missing project vs the referencing project"
+        },
+        {
+          "score": 2,
+          "criterion": "Connected the dots: project not in solution → builds with stale/wrong config → output in wrong path"
+        }
+      ],
+      "metrics": {
+        "inputTokens": 1143799,
+        "toolCallCount": 39,
+        "errorCount": 0,
+        "wallTimeMs": 512554,
+        "turnCount": 39,
+        "outputTokens": 20573
+      }
+    },
+    {
+      "scenario": "Analysis — Diagnose why a file copy failed during build",
+      "reasoning": "The agent completely failed to deliver a useful answer. It spent the entire 600-second budget mostly struggling to establish communication with the binlog MCP tool (over a dozen attempts at JSON-RPC protocol handshaking), and while it eventually started extracting some relevant data from the binlog, it ran out of time before synthesizing any analysis. The final output — 'Good, I found the error. Now let me investigate why that file is missing.' — is not an answer; it's an intermediate status update. None of the five rubric criteria were addressed in the output. This represents a total failure to complete the task.",
+      "score": 1,
+      "rubricScores": [
+        {
+          "score": 1,
+          "criterion": "Identified that the missing file is from a project output directory"
+        },
+        {
+          "score": 1,
+          "criterion": "Noticed the Debug vs Release path discrepancy (the file was expected in Release but the dependency was built in Debug, or vice versa)"
+        },
+        {
+          "score": 1,
+          "criterion": "Recognized that the referenced project may not be part of the solution, leading to a configuration mismatch"
+        },
+        {
+          "score": 1,
+          "criterion": "Explained the causal chain: project not in solution → wrong configuration → output in wrong path → copy fails"
+        },
+        {
+          "score": 1,
+          "criterion": "Suggested adding the project to the solution as a potential fix"
+        }
+      ],
+      "metrics": {
+        "inputTokens": 823969,
+        "toolCallCount": 35,
+        "errorCount": 1,
+        "wallTimeMs": 600261,
+        "turnCount": 34,
+        "outputTokens": 23580
+      }
+    },
+    {
+      "scenario": "Surface — Identify build error from binlog (missing file copy)",
+      "reasoning": "The agent produced an accurate and well-structured analysis of the build failure from the binlog. All key details (error code, failed project, file path, copy target purpose) are correctly identified. The process was somewhat inefficient - 19 tool calls and 217 seconds due to struggling with MCP server communication (multiple failed attempts to pipe JSON-RPC, server start/stop cycles). However, the agent persevered and ultimately extracted the correct information. The final output is clear, well-organized, and even includes a useful root cause analysis. The only minor gap is not explicitly calling out net8.0-windows as the target framework, though it is visible in the path.",
+      "score": 4,
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified the MSB3030 error (could not copy file)"
+        },
+        {
+          "score": 5,
+          "criterion": "Named the project that failed (LrgWindowsFabricHost)"
+        },
+        {
+          "score": 5,
+          "criterion": "Included the full file path that was not found"
+        },
+        {
+          "score": 5,
+          "criterion": "Mentioned what the copy target was trying to do (copy a project output file)"
+        },
+        {
+          "score": 4,
+          "criterion": "Noted the target framework (net8.0-windows) involved in the failure"
+        }
+      ],
+      "metrics": {
+        "inputTokens": 316322,
+        "toolCallCount": 19,
+        "errorCount": 0,
+        "wallTimeMs": 217805,
+        "turnCount": 18,
+        "outputTokens": 3699
+      }
+    }
+  ]
+}
