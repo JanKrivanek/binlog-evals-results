@@ -1,0 +1,152 @@
+{
+  "caseName": "01-project-not-in-solution",
+  "extractRun": "plugin",
+  "configName": "andyg-mcp",
+  "configId": "G",
+  "scenarios": [
+    {
+      "scenario": "Analysis — Diagnose why a file copy failed during build",
+      "metrics": {
+        "inputTokens": 1067277,
+        "outputTokens": 18845,
+        "toolCallCount": 37,
+        "errorCount": 1,
+        "turnCount": 36,
+        "wallTimeMs": 604031
+      },
+      "score": 1,
+      "reasoning": "The agent completely failed to produce a usable answer. It spent the entire 600-second timeout doing low-level binary parsing of the binlog file with custom Python scripts (since proper MSBuild binlog tools were unavailable). While it did extract some relevant data points — the MSB3030 error, the CopyLocalSFClusterManifests target, project references, and configuration entries — it never synthesized these findings into a coherent analysis. The final output is literally a mid-sentence fragment ('Now let me get the full CopyLocalSFClusterManifests target:'), indicating the agent was still gathering data when it ran out of time. The approach was methodical but far too slow and inefficient — 37 tool calls across 36 turns without ever producing a conclusion. The agent should have extracted key data more efficiently and moved to analysis sooner rather than continuing to run more and more extraction queries.",
+      "rubricScores": [
+        {
+          "criterion": "Identified that the missing file is from a project output directory",
+          "score": 2
+        },
+        {
+          "criterion": "Noticed the Debug vs Release path discrepancy (the file was expected in Release but the dependency was built in Debug, or vice versa)",
+          "score": 1
+        },
+        {
+          "criterion": "Recognized that the referenced project may not be part of the solution, leading to a configuration mismatch",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the causal chain: project not in solution → wrong configuration → output in wrong path → copy fails",
+          "score": 1
+        },
+        {
+          "criterion": "Suggested adding the project to the solution as a potential fix",
+          "score": 1
+        }
+      ]
+    },
+    {
+      "scenario": "Insight — Determine which projects are in the solution vs referenced",
+      "metrics": {
+        "inputTokens": 665742,
+        "outputTokens": 4816,
+        "toolCallCount": 27,
+        "errorCount": 0,
+        "turnCount": 27,
+        "wallTimeMs": 198312
+      },
+      "score": 3,
+      "reasoning": "The agent did solid investigative work — efficiently using binlogtool to search the binlog, reconstructing the solution file, identifying the error, and listing all projects. The factual findings (error details, project list, LrgWindowsAppManifest not in solution) are accurate and well-supported. However, the analysis falls short on the configuration comparison and root-cause connection. The agent conflated TargetFramework with Platform in the configuration discussion, and didn't explain the causal mechanism of why the project not being in the solution led to the missing output. The work is competent data gathering with incomplete analysis.",
+      "rubricScores": [
+        {
+          "criterion": "Listed the projects that were built as part of the solution",
+          "score": 4
+        },
+        {
+          "criterion": "Identified that LrgWindowsAppManifest was referenced but not included in the solution build",
+          "score": 4
+        },
+        {
+          "criterion": "Noted the configuration (Debug vs Release) used for the missing project vs the referencing project",
+          "score": 3
+        },
+        {
+          "criterion": "Connected the dots: project not in solution → builds with stale/wrong config → output in wrong path",
+          "score": 2
+        }
+      ]
+    },
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "metrics": {
+        "inputTokens": 2003237,
+        "outputTokens": 27085,
+        "toolCallCount": 61,
+        "errorCount": 1,
+        "turnCount": 59,
+        "wallTimeMs": 900210
+      },
+      "score": 1,
+      "reasoning": "The agent failed to produce any meaningful output. It timed out at 900 seconds after 61 tool calls, and its final 'output' is just an incomplete sentence: 'I found the smoking gun. Let me verify the configuration mismatch:'. The task explicitly requested a structured report with (1) error summary, (2) root cause chain with evidence, and (3) verified fix — none of which were delivered. While the agent did make progress in its investigation — discovering the Debug/Release configuration mismatch and related evidence — it was extremely inefficient. It wasted ~15 tool calls trying to get the MCP server running before pivoting, and then wrote multiple custom C# programs iteratively. The approach was methodical but far too slow. The agent gathered evidence that was directionally correct but never synthesized it into a deliverable answer.",
+      "rubricScores": [
+        {
+          "criterion": "Identified the specific error (MSB3030 in LrgWindowsFabricHost) with the exact missing file path",
+          "score": 2
+        },
+        {
+          "criterion": "Traced the missing file to LrgWindowsAppManifest's output directory and noticed it was built under Debug, not Release",
+          "score": 2
+        },
+        {
+          "criterion": "Verified that LrgWindowsAppManifest is referenced via ProjectReference but is NOT listed in the solution file",
+          "score": 2
+        },
+        {
+          "criterion": "Explained the full causal chain: project absent from solution → MSBuild doesn't assign it the Release configuration → it uses Debug from a prior build → output lands in Debug path → copy from Release path fails",
+          "score": 1
+        },
+        {
+          "criterion": "Cross-referenced multiple data points (solution project list, project configurations, output paths, ProjectReference declarations) to confirm the hypothesis",
+          "score": 2
+        },
+        {
+          "criterion": "Proposed the specific fix: add LrgWindowsAppManifest to the solution file",
+          "score": 1
+        },
+        {
+          "criterion": "Verified the fix would resolve the issue by confirming that adding the project to the solution would cause it to receive the Release configuration and produce output in the correct path",
+          "score": 1
+        }
+      ]
+    },
+    {
+      "scenario": "Surface — Identify build error from binlog (missing file copy)",
+      "metrics": {
+        "inputTokens": 62816,
+        "outputTokens": 660,
+        "toolCallCount": 5,
+        "errorCount": 0,
+        "turnCount": 3,
+        "wallTimeMs": 27906
+      },
+      "score": 5,
+      "reasoning": "The agent efficiently diagnosed the build failure. After an initial hiccup with the file path (which it quickly recovered from), it used both GetErrors and GetBuildSummary tools to provide a comprehensive answer. The output is well-formatted with a clear summary, error table, and helpful explanation of the root cause. All key information was identified and presented clearly. The minor truncation of the file path and implicit (rather than explicit) mention of the target framework are very minor issues that don't detract from the overall excellent quality.",
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3030 error (could not copy file)",
+          "score": 5
+        },
+        {
+          "criterion": "Named the project that failed (LrgWindowsFabricHost)",
+          "score": 5
+        },
+        {
+          "criterion": "Included the full file path that was not found",
+          "score": 4
+        },
+        {
+          "criterion": "Mentioned what the copy target was trying to do (copy a project output file)",
+          "score": 5
+        },
+        {
+          "criterion": "Noted the target framework (net8.0-windows) involved in the failure",
+          "score": 4
+        }
+      ]
+    }
+  ]
+}
