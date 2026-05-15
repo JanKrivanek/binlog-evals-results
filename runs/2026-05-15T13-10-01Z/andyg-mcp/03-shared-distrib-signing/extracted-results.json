@@ -1,0 +1,152 @@
+{
+  "configName": "andyg-mcp",
+  "scenarios": [
+    {
+      "metrics": {
+        "inputTokens": 1911763,
+        "toolCallCount": 52,
+        "outputTokens": 25885,
+        "turnCount": 50,
+        "errorCount": 1,
+        "wallTimeMs": 904332
+      },
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 2
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 2
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 2
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 2
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 1
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 1
+        }
+      ],
+      "reasoning": "The agent failed to produce any meaningful output. Despite spending 900 seconds and 52 tool calls, the final 'Agent Output' is a single incomplete sentence ('Let me look at the detailed task output and messages around the signing failure:'). The agent wasted significant time on MCP server setup (~12 turns), and while it gathered relevant data once the tools were working, it never synthesized findings, never identified the root cause (CAS read-only hard links), never explained the non-determinism mechanism, and never proposed a fix. The investigation approach was reasonable but extremely slow, and the lack of any deliverable output means the task requirements were not met at all.",
+      "score": 1
+    },
+    {
+      "metrics": {
+        "inputTokens": 1014820,
+        "toolCallCount": 39,
+        "outputTokens": 16645,
+        "turnCount": 38,
+        "errorCount": 0,
+        "wallTimeMs": 423584
+      },
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 5
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 2
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 3
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 3
+        }
+      ],
+      "reasoning": "The agent conducted a methodical investigation using the binlog MCP tools, correctly identifying the failing file (StorageLibrary.dll), the glob-based signing sweep of the distrib directory, and the shared output path. The investigation approach was sound and the agent made good use of available tools. However, the core diagnosis was partially incorrect — attributing the failure to a race condition / concurrent file locking rather than read-only CAS hard links in CloudBuild. This is a significant miss because 'Access is denied' in CloudBuild contexts is a well-known symptom of attempting to modify cached hard-linked files. The agent's hypothesis is plausible but less likely given the CloudBuild environment indicators present in the binlog (SESSIONROOT, INETROOT patterns). The final output is well-structured and clearly presented, but the root cause analysis misses the key mechanism.",
+      "score": 3
+    },
+    {
+      "metrics": {
+        "inputTokens": 622384,
+        "toolCallCount": 28,
+        "outputTokens": 8447,
+        "turnCount": 28,
+        "errorCount": 0,
+        "wallTimeMs": 362089
+      },
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 3
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 4
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 4
+        }
+      ],
+      "reasoning": "The agent successfully extracted the key information from the binlog despite significant initial struggles with MCP server communication (consuming ~60% of the time). The final output is well-structured with a clear table and explanation. The DataSources Distrib property was definitively found, and the shared output directory conclusion is correct. The main weaknesses are: (1) not explicitly verifying Distrib for each project individually, and (2) some details in the signing failure explanation appear inferred rather than directly observed. Overall a good analysis that answers the user's questions correctly, with some assumptions clearly presented as conclusions.",
+      "score": 4
+    },
+    {
+      "metrics": {
+        "inputTokens": 244970,
+        "toolCallCount": 18,
+        "outputTokens": 4249,
+        "turnCount": 17,
+        "errorCount": 1,
+        "wallTimeMs": 300087
+      },
+      "scenario": "Surface — Identify signing failure from binlog",
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 1
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 1
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 1
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 1
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 1
+        }
+      ],
+      "reasoning": "The agent completely failed the task. It spent the entire 300-second budget attempting to manually bootstrap MCP server communication via Python subprocess scripts, all of which hung indefinitely. It never successfully queried the binlog and produced zero diagnostic information about the build failure. The final output is just a statement of intent ('Let me query the binlog...') with no actual findings. The approach was also inefficient — it could have tried alternative methods like using dotnet to parse the binlog directly, or using the structured log viewer CLI, instead of repeatedly attempting the same failing MCP communication pattern.",
+      "score": 1
+    }
+  ],
+  "extractRun": "plugin",
+  "caseName": "03-shared-distrib-signing",
+  "configId": "G"
+}
