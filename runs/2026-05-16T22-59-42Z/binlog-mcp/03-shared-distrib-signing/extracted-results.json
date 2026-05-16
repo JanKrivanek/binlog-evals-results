@@ -1,0 +1,152 @@
+{
+  "configName": "binlog-mcp",
+  "caseName": "03-shared-distrib-signing",
+  "configId": "H",
+  "extractRun": "plugin",
+  "scenarios": [
+    {
+      "reasoning": "The agent did a competent job with the available data. It successfully extracted the Distrib property for DataSources, identified the signing error, and made a reasonable connection between the shared output directory and the failure. However, it fell short on fully answering the question about Distrib values for 'each project' — reporting 'no data' for 3 of 4 projects without exhausting alternative investigation approaches. The shared output directory analysis was based on observing file presence rather than confirming project configurations. The work was methodical (trying multiple context IDs, examining both evaluation and project contexts) but ultimately incomplete on the cross-project comparison aspect of the question.",
+      "score": 3,
+      "scenario": "Insight — Inspect Distrib property across projects in signing build",
+      "rubricScores": [
+        {
+          "criterion": "Found the Distrib property value for the DataSources project",
+          "score": 5
+        },
+        {
+          "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+          "score": 3
+        },
+        {
+          "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+          "score": 3
+        },
+        {
+          "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+          "score": 4
+        }
+      ],
+      "metrics": {
+        "outputTokens": 5038,
+        "inputTokens": 233228,
+        "errorCount": 0,
+        "wallTimeMs": 95515,
+        "turnCount": 9,
+        "toolCallCount": 26
+      }
+    },
+    {
+      "reasoning": "The agent took a reasonably efficient path through the binlog analysis, recovering well from the oversized output issue. It correctly identified the core problem (access denied on a specific DLL during signing) and provided actionable remediation suggestions. However, it omitted key details that were clearly available in its tool results: the MSB3073 error code, the DataSources project name, and the SignCopiedFiles target name. The diagnosis is substantially correct but incomplete in its specifics, warranting an average score.",
+      "score": 3,
+      "scenario": "Surface — Identify signing failure from binlog",
+      "rubricScores": [
+        {
+          "criterion": "Identified the MSB3073 error from the signing step",
+          "score": 2
+        },
+        {
+          "criterion": "Named the project that failed (DataSources)",
+          "score": 2
+        },
+        {
+          "criterion": "Mentioned that the signing tool failed with an access/permission error",
+          "score": 5
+        },
+        {
+          "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+          "score": 3
+        }
+      ],
+      "metrics": {
+        "outputTokens": 995,
+        "inputTokens": 111315,
+        "errorCount": 0,
+        "wallTimeMs": 35338,
+        "turnCount": 6,
+        "toolCallCount": 7
+      }
+    },
+    {
+      "reasoning": "The agent demonstrated good investigative methodology — it systematically explored the binlog, found the error, traced the signing target, identified the wildcard glob pattern, and recognized the shared output directory issue. The investigation was efficient with 21 tool calls and no errors. However, the agent missed the most critical technical insight: the CloudBuild CAS hard link mechanism that makes files read-only, which is the actual cause of the 'Access is denied' error. Instead, it attributed the failure to a generic parallel file I/O race condition. This is a significant analytical gap that undermines the correctness of the root cause analysis, even though the surface-level observations (shared directory, wildcard glob) are accurate. The fix suggestions are reasonable but not precisely targeted at the actual problem.",
+      "score": 3,
+      "scenario": "Analysis — Diagnose why code signing fails with access denied",
+      "rubricScores": [
+        {
+          "criterion": "Identified that the signing target sweeps a distribution/output folder",
+          "score": 5
+        },
+        {
+          "criterion": "Recognized that multiple projects write to the same output folder",
+          "score": 4
+        },
+        {
+          "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+          "score": 1
+        },
+        {
+          "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+          "score": 3
+        },
+        {
+          "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+          "score": 3
+        }
+      ],
+      "metrics": {
+        "outputTokens": 4252,
+        "inputTokens": 475554,
+        "errorCount": 0,
+        "wallTimeMs": 126223,
+        "turnCount": 16,
+        "toolCallCount": 21
+      }
+    },
+    {
+      "reasoning": "The agent conducted a methodical investigation, efficiently finding the error, tracing file provenance, and identifying the shared output path problem. The tool usage was competent with 45 calls and no errors. However, the investigation has a critical gap: it completely missed the CloudBuild CAS (content-addressable store) mechanism that makes files read-only via hard links — the actual root cause of why files cannot be signed. Instead, the agent speculated about file locking from parallel signing, which is plausible but incorrect. This cascading miss affects the quality of the non-determinism explanation, the fix proposal (incomplete — doesn't address Common.csproj), and the verification. The work is competent but incomplete on the most technically important aspect.",
+      "score": 3,
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 5
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 4
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 4
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 3
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 2
+        }
+      ],
+      "metrics": {
+        "outputTokens": 13629,
+        "inputTokens": 1018386,
+        "errorCount": 0,
+        "wallTimeMs": 319442,
+        "turnCount": 22,
+        "toolCallCount": 45
+      }
+    }
+  ]
+}
