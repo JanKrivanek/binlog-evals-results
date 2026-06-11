@@ -1,0 +1,152 @@
+{
+  "configId": "D",
+  "caseName": "02-binding-redirect-poison",
+  "scenarios": [
+    {
+      "scenario": "Surface — Extract MSB3277 assembly version conflict details",
+      "metrics": {
+        "inputTokens": 134046,
+        "errorCount": 0,
+        "turnCount": 7,
+        "wallTimeMs": 49729,
+        "toolCallCount": 8,
+        "outputTokens": 1059
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified MSB3277 as the error code",
+          "score": 5
+        },
+        {
+          "criterion": "Named System.Diagnostics.DiagnosticSource as the conflicting assembly",
+          "score": 5
+        },
+        {
+          "criterion": "Identified DeviceConfigClient as the project with the conflict",
+          "score": 5
+        },
+        {
+          "criterion": "Noted the two conflicting versions (10.0.0.0 vs 10.0.0.3)",
+          "score": 5
+        },
+        {
+          "criterion": "Mentioned which target framework (net8.0) is affected by the conflict",
+          "score": 5
+        }
+      ],
+      "score": 5,
+      "reasoning": "The agent successfully identified all key details about the build failure despite some tool output retrieval issues. It recovered well by using alternative tools (binlog_overview) and provided a comprehensive, accurate answer with all required information plus helpful remediation suggestions."
+    },
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "metrics": {
+        "inputTokens": 4526633,
+        "errorCount": 0,
+        "turnCount": 87,
+        "wallTimeMs": 609185,
+        "toolCallCount": 101,
+        "outputTokens": 20795
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified MSB3277 for System.Diagnostics.DiagnosticSource in DeviceConfigClient, specifically in the net8.0 target framework build",
+          "score": 5
+        },
+        {
+          "criterion": "Discovered that the NuGet package ships different assembly versions per TFM: 10.0.0.0 for net8.0 and 10.0.0.3 for net472",
+          "score": 4
+        },
+        {
+          "criterion": "Found the App.config file with a binding redirect that specifies newVersion=10.0.0.3",
+          "score": 3
+        },
+        {
+          "criterion": "Traced how the AppConfigFile MSBuild property feeds into the ResolveAssemblyReference task for ALL target frameworks, including net8.0 where binding redirects don't apply",
+          "score": 5
+        },
+        {
+          "criterion": "Explained that RAR reads the binding redirect and tries to unify to version 10.0.0.3, which conflicts with the actual net8.0 assembly version 10.0.0.0",
+          "score": 5
+        },
+        {
+          "criterion": "Noted that the error message is misleading — it claims other assemblies depend on 10.0.0.3, but this is an artifact of RAR applying the redirect before reporting",
+          "score": 2
+        },
+        {
+          "criterion": "Proposed removing the hardcoded binding redirect from App.config as the specific fix, noting that AutoGenerateBindingRedirects handles this correctly for net472",
+          "score": 3
+        }
+      ],
+      "score": 4,
+      "reasoning": "The agent performed a thorough investigation despite taking many tool calls (101) and a long time (609s). It correctly identified the root cause: an App.config with net472 binding redirects being fed to the net8.0 RAR task. The core analysis is sound and well-supported by binlog evidence. The main weaknesses are: (1) not explicitly noting the misleading nature of the error message, (2) not being able to directly read the App.config XML content, and (3) proposing a slightly different fix than the rubric expects. Despite the inefficiency in execution, the final output is well-structured, accurate, and provides a workable solution."
+    },
+    {
+      "scenario": "Insight — Inspect how RAR processes binding redirects across TFMs",
+      "metrics": {
+        "inputTokens": 1059618,
+        "errorCount": 0,
+        "turnCount": 29,
+        "wallTimeMs": 191598,
+        "toolCallCount": 45,
+        "outputTokens": 6965
+      },
+      "rubricScores": [
+        {
+          "criterion": "Found the AppConfigFile property value for the net8.0 inner build",
+          "score": 4
+        },
+        {
+          "criterion": "Located the binding redirect entry for DiagnosticSource in App.config",
+          "score": 1
+        },
+        {
+          "criterion": "Explained that the binding redirect specifies newVersion=10.0.0.3 which conflicts with the net8.0 assembly version 10.0.0.0",
+          "score": 2
+        },
+        {
+          "criterion": "Noted that AutoGenerateBindingRedirects is already enabled, making the manual redirect unnecessary",
+          "score": 3
+        }
+      ],
+      "score": 2,
+      "reasoning": "The agent successfully found the AppConfigFile property and AutoGenerateBindingRedirects setting, but failed on the core question: understanding why 10.0.0.3 appears. It couldn't read the App.config contents from the binlog and therefore missed the key insight that a manual binding redirect in App.config specifies newVersion=10.0.0.3, which conflicts with the actual assembly version 10.0.0.0 shipped in the NuGet package. The agent spent 45 tool calls and nearly 200 seconds but couldn't piece together the full picture, leaving the user without the actionable answer they needed."
+    },
+    {
+      "scenario": "Analysis — Find root cause of DiagnosticSource version conflict",
+      "metrics": {
+        "inputTokens": 3055675,
+        "errorCount": 0,
+        "turnCount": 63,
+        "wallTimeMs": 631530,
+        "toolCallCount": 90,
+        "outputTokens": 26520
+      },
+      "rubricScores": [
+        {
+          "criterion": "Identified that the conflict involves assembly versions 10.0.0.0 (net8.0) and 10.0.0.3 (net472)",
+          "score": 3
+        },
+        {
+          "criterion": "Recognized that the conflict occurs specifically in the net8.0 build, not net472",
+          "score": 4
+        },
+        {
+          "criterion": "Found that App.config or a binding redirect is involved in the root cause",
+          "score": 3
+        },
+        {
+          "criterion": "Explained that MSBuild's RAR reads App.config for all target frameworks, not just .NET Framework",
+          "score": 4
+        },
+        {
+          "criterion": "Suggested removing the hardcoded binding redirect rather than suppressing the warning",
+          "score": 4
+        }
+      ],
+      "score": 3,
+      "reasoning": "The agent arrived at a plausible and likely correct diagnosis, but the path was inefficient (90 tool calls, 631 seconds) and the key evidence was never fully confirmed. The task specifically asked to 'read the actual file contents' of the AppConfigFile, which the agent failed to do - searches for App.config in the binlog returned empty, and no actual file content with binding redirects was ever retrieved. The agent's conclusion about App.config containing a specific binding redirect is inferred rather than proven. The conflict message found ('Encountered conflict between' the NuGet net8.0 DLL and the SDK ref pack) was useful but the agent didn't deeply investigate WHY that conflict becomes an error (which would be the App.config redirect). The final answer is reasonable but built partly on assumption rather than traced evidence."
+    }
+  ],
+  "configName": "binlog-insights-mcp",
+  "extractRun": "plugin"
+}
