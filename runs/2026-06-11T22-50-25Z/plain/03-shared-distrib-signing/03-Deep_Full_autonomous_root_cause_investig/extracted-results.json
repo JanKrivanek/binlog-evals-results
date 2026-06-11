@@ -1,0 +1,51 @@
+{
+  "scenarios": [
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "metrics": {
+        "toolCallCount": 35,
+        "inputTokens": 1389865,
+        "errorCount": 0,
+        "wallTimeMs": 567005,
+        "outputTokens": 26235,
+        "turnCount": 34
+      },
+      "reasoning": "The agent successfully identified the surface-level error (MSB3073, SignTool Access Denied, StorageLibrary.dll) and correctly found that DataSources' CreateCopiedFileList target scans the entire distrib directory indiscriminately. However, it failed on deeper investigation: it missed that Common and StorageLibrary projects also deploy to the same directory, missed the CAS/hard-link mechanism causing read-only status, and proposed fixes targeting the wrong root cause. The investigation was methodical but stopped short of fully tracing all project interactions in the binlog.",
+      "rubricScores": [
+        {
+          "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+          "score": 5
+        },
+        {
+          "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+          "score": 3
+        },
+        {
+          "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+          "score": 2
+        },
+        {
+          "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+          "score": 1
+        },
+        {
+          "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+          "score": 3
+        },
+        {
+          "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+          "score": 2
+        },
+        {
+          "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+          "score": 2
+        }
+      ],
+      "score": 3
+    }
+  ],
+  "configName": "plain",
+  "extractRun": "baseline",
+  "caseName": "03-shared-distrib-signing",
+  "configId": "A"
+}
