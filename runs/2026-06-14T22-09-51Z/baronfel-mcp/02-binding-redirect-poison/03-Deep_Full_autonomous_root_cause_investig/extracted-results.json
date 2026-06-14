@@ -1,0 +1,51 @@
+{
+  "caseName": "02-binding-redirect-poison",
+  "configId": "C",
+  "configName": "baronfel-mcp",
+  "scenarios": [
+    {
+      "metrics": {
+        "turnCount": 241,
+        "toolCallCount": 258,
+        "wallTimeMs": 1487205,
+        "errorCount": 0,
+        "outputTokens": 65208,
+        "inputTokens": 21551307
+      },
+      "score": 1,
+      "reasoning": "The agent spent enormous effort (258 tool calls, ~25 minutes) but arrived at fundamentally incorrect conclusions. While it correctly identified the project, package, and version numbers involved, it completely missed the actual root cause: an App.config binding redirect being fed to the RAR task for net8.0 where it doesn't belong. The agent fabricated an explanation about NuGet package pruning incorrectly selecting net8.0 assets for net472, which contradicts the rubric's expected finding that the issue is in the net8.0 build, not net472. The agent also failed to examine the App.config file despite the task prompt explicitly instructing it to read configuration file contents. The proposed fixes are all wrong as they don't address the actual problem.",
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "rubricScores": [
+        {
+          "score": 2,
+          "criterion": "Identified MSB3277 for System.Diagnostics.DiagnosticSource in DeviceConfigClient, specifically in the net8.0 target framework build"
+        },
+        {
+          "score": 4,
+          "criterion": "Discovered that the NuGet package ships different assembly versions per TFM: 10.0.0.0 for net8.0 and 10.0.0.3 for net472"
+        },
+        {
+          "score": 1,
+          "criterion": "Found the App.config file with a binding redirect that specifies newVersion=10.0.0.3"
+        },
+        {
+          "score": 1,
+          "criterion": "Traced how the AppConfigFile MSBuild property feeds into the ResolveAssemblyReference task for ALL target frameworks, including net8.0 where binding redirects don't apply"
+        },
+        {
+          "score": 1,
+          "criterion": "Explained that RAR reads the binding redirect and tries to unify to version 10.0.0.3, which conflicts with the actual net8.0 assembly version 10.0.0.0"
+        },
+        {
+          "score": 1,
+          "criterion": "Noted that the error message is misleading — it claims other assemblies depend on 10.0.0.3, but this is an artifact of RAR applying the redirect before reporting"
+        },
+        {
+          "score": 1,
+          "criterion": "Proposed removing the hardcoded binding redirect from App.config as the specific fix, noting that AutoGenerateBindingRedirects handles this correctly for net472"
+        }
+      ]
+    }
+  ],
+  "extractRun": "plugin"
+}
