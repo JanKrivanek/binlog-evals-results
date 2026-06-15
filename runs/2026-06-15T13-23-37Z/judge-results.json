@@ -1,0 +1,478 @@
+{
+  "timestamp": "2026-06-15T13:23:30.6485823+00:00",
+  "cases": [
+    "01-project-not-in-solution",
+    "02-binding-redirect-poison",
+    "03-shared-distrib-signing"
+  ],
+  "configs": [
+    "aitools-mcp",
+    "baronfel-mcp",
+    "binlog-insights-mcp",
+    "binlog-mcp",
+    "plain",
+    "skill-mcp",
+    "skill-only"
+  ],
+  "caseResults": {
+    "01-project-not-in-solution": {
+      "scenarios": {
+        "Analysis — Diagnose why a file copy failed during build": {
+          "plain": {
+            "reasoning": "The agent performed a thorough and methodical analysis of the binary log. Despite initial challenges finding the right tooling to parse the binlog, it wrote custom C# code to extract the needed information. It correctly identified both root causes (project excluded from solution config AND Debug vs Release mismatch), explained the full causal chain clearly, and provided actionable fix suggestions. The final output is well-structured and directly addresses both 'what' and 'why'.",
+            "rubricScores": [
+              {
+                "criterion": "Identified that the missing file is from a project output directory",
+                "score": 5
+              },
+              {
+                "criterion": "Noticed the Debug vs Release path discrepancy (the file was expected in Release but the dependency was built in Debug, or vice versa)",
+                "score": 5
+              },
+              {
+                "criterion": "Recognized that the referenced project may not be part of the solution, leading to a configuration mismatch",
+                "score": 5
+              },
+              {
+                "criterion": "Explained the causal chain: project not in solution → wrong configuration → output in wrong path → copy fails",
+                "score": 5
+              },
+              {
+                "criterion": "Suggested adding the project to the solution as a potential fix",
+                "score": 5
+              }
+            ],
+            "metrics": {
+              "inputTokens": 949800,
+              "errorCount": 0,
+              "outputTokens": 15367,
+              "toolCallCount": 41,
+              "wallTimeMs": 434793,
+              "turnCount": 41
+            },
+            "score": 5
+          }
+        },
+        "Surface — Identify build error from binlog (missing file copy)": {
+          "plain": {
+            "reasoning": "The agent successfully parsed the binary log and extracted the correct error information. The path to get there was somewhat circuitous (trying multiple tools before writing a custom C# program), but the final output is clear, accurate, and well-formatted. All key information is present.",
+            "rubricScores": [
+              {
+                "criterion": "Identified the MSB3030 error (could not copy file)",
+                "score": 5
+              },
+              {
+                "criterion": "Named the project that failed (LrgWindowsFabricHost)",
+                "score": 5
+              },
+              {
+                "criterion": "Included the full file path that was not found",
+                "score": 5
+              },
+              {
+                "criterion": "Mentioned what the copy target was trying to do (copy a project output file)",
+                "score": 4
+              },
+              {
+                "criterion": "Noted the target framework (net8.0-windows) involved in the failure",
+                "score": 4
+              }
+            ],
+            "metrics": {
+              "inputTokens": 226098,
+              "errorCount": 0,
+              "outputTokens": 3098,
+              "toolCallCount": 15,
+              "wallTimeMs": 98542,
+              "turnCount": 15
+            },
+            "score": 4
+          }
+        },
+        "Deep — Full autonomous root cause investigation and fix proposal": {
+          "plain": {
+            "reasoning": "The agent performed a thorough investigation of a binary log file, which is a non-trivial format to work with. It correctly identified the MSB3030 error, traced it to a configuration mismatch (Debug vs Release) caused by the manifest projects being absent from the solution configuration mapping, and proposed two valid fixes. The root cause chain is well-documented with specific evidence from the binlog. The investigation took many steps (46 tool calls) partly due to the difficulty of parsing binary log format, but the agent was persistent and methodical. The final report is well-structured and accurate. Minor deductions for: the somewhat lengthy investigation path, and the verification of the fix being more logical reasoning than empirical verification.",
+            "rubricScores": [
+              {
+                "criterion": "Identified the specific error (MSB3030 in LrgWindowsFabricHost) with the exact missing file path",
+                "score": 5
+              },
+              {
+                "criterion": "Traced the missing file to LrgWindowsAppManifest's output directory and noticed it was built under Debug, not Release",
+                "score": 5
+              },
+              {
+                "criterion": "Verified that LrgWindowsAppManifest is referenced via ProjectReference but is NOT listed in the solution file",
+                "score": 5
+              },
+              {
+                "criterion": "Explained the full causal chain: project absent from solution → MSBuild doesn't assign it the Release configuration → it uses Debug from a prior build → output lands in Debug path → copy from Release path fails",
+                "score": 4
+              },
+              {
+                "criterion": "Cross-referenced multiple data points (solution project list, project configurations, output paths, ProjectReference declarations) to confirm the hypothesis",
+                "score": 5
+              },
+              {
+                "criterion": "Proposed the specific fix: add LrgWindowsAppManifest to the solution file",
+                "score": 4
+              },
+              {
+                "criterion": "Verified the fix would resolve the issue by confirming that adding the project to the solution would cause it to receive the Release configuration and produce output in the correct path",
+                "score": 3
+              }
+            ],
+            "metrics": {
+              "inputTokens": 1402528,
+              "errorCount": 0,
+              "outputTokens": 19310,
+              "toolCallCount": 46,
+              "wallTimeMs": 475240,
+              "turnCount": 40
+            },
+            "score": 4
+          }
+        },
+        "Insight — Determine which projects are in the solution vs referenced": {
+          "plain": {
+            "reasoning": "The agent correctly identified the build error (MSB3030, missing ApplicationManifest.xml) and the two projects involved, but fundamentally misdiagnosed the root cause. The critical insight — that LrgWindowsAppManifest was NOT part of the solution build and therefore would have been built with a different/stale configuration, producing output in a different path — was entirely missed. The agent instead incorrectly claimed the project was among the 45 solution projects. The approach was also quite inefficient (33 tool calls, ~5 minutes) due to trial-and-error with various binlog tools before settling on writing a C# parser. Despite the effort, the core analysis was wrong on the most important points.",
+            "rubricScores": [
+              {
+                "criterion": "Listed the projects that were built as part of the solution",
+                "score": 3
+              },
+              {
+                "criterion": "Identified that LrgWindowsAppManifest was referenced but not included in the solution build",
+                "score": 1
+              },
+              {
+                "criterion": "Noted the configuration (Debug vs Release) used for the missing project vs the referencing project",
+                "score": 2
+              },
+              {
+                "criterion": "Connected the dots: project not in solution → builds with stale/wrong config → output in wrong path",
+                "score": 1
+              }
+            ],
+            "metrics": {
+              "inputTokens": 562456,
+              "errorCount": 0,
+              "outputTokens": 5628,
+              "toolCallCount": 33,
+              "wallTimeMs": 290946,
+              "turnCount": 26
+            },
+            "score": 2
+          }
+        }
+      },
+      "description": "Case 01: Project Not in Solution (Configuration Mismatch)"
+    },
+    "03-shared-distrib-signing": {
+      "scenarios": {
+        "Insight — Inspect Distrib property across projects in signing build": {
+          "plain": {
+            "reasoning": "The agent took a reasonable approach: installed binlogtool, searched for relevant properties and errors, and synthesized a coherent analysis. It successfully found the Distrib property for DataSources, identified the signing error, and explained the double-signing root cause. However, it fell short on thoroughly checking all projects' Distrib settings (the task explicitly asked for 'each project'), and its analysis of shared output directories was somewhat incomplete — it conflated CopyLocal dependency copying with projects sharing the same Distrib path. The tooling approach was slightly inefficient (failed installs early on) but recovered well. The final output is useful and mostly correct but doesn't fully answer all parts of the question.",
+            "rubricScores": [
+              {
+                "criterion": "Found the Distrib property value for the DataSources project",
+                "score": 4
+              },
+              {
+                "criterion": "Checked whether other projects (Common, StorageLibrary) use the same Distrib path",
+                "score": 2
+              },
+              {
+                "criterion": "Identified that multiple projects point to the same shared output folder (e.g. the ConfigurationLinterService path)",
+                "score": 3
+              },
+              {
+                "criterion": "Explained how this shared folder causes the signing conflict — signtool encounters files owned by other projects",
+                "score": 4
+              }
+            ],
+            "metrics": {
+              "inputTokens": 214462,
+              "toolCallCount": 20,
+              "errorCount": 0,
+              "wallTimeMs": 91661,
+              "outputTokens": 3394,
+              "turnCount": 12
+            },
+            "score": 3
+          }
+        },
+        "Surface — Identify signing failure from binlog": {
+          "plain": {
+            "reasoning": "The agent's approach was reasonable in trying to extract strings from the binlog, but it failed to properly examine the large output file (34KB) that likely contained the key error information. Most critically, the agent's final answer contains very specific details (exact error messages, timestamps) that don't appear in any tool output from the session timeline, suggesting the agent fabricated or hallucinated details rather than extracting them from the data. While some claims may coincidentally be correct (the StorageLibrary.dll path was partially visible), the methodology was unreliable and key rubric items like MSB3073 and SignCopiedFiles were missed entirely.",
+            "rubricScores": [
+              {
+                "criterion": "Identified the MSB3073 error from the signing step",
+                "score": 2
+              },
+              {
+                "criterion": "Named the project that failed (DataSources)",
+                "score": 2
+              },
+              {
+                "criterion": "Mentioned that the signing tool failed with an access/permission error",
+                "score": 3
+              },
+              {
+                "criterion": "Identified the specific file that failed to sign (e.g. StorageLibrary.dll or similar DLL)",
+                "score": 3
+              },
+              {
+                "criterion": "Mentioned the SignCopiedFiles or signing target involved",
+                "score": 1
+              }
+            ],
+            "metrics": {
+              "inputTokens": 92460,
+              "toolCallCount": 7,
+              "errorCount": 0,
+              "wallTimeMs": 30331,
+              "outputTokens": 1198,
+              "turnCount": 6
+            },
+            "score": 2
+          }
+        },
+        "Deep — Full autonomous root cause investigation and fix proposal": {
+          "plain": {
+            "reasoning": "The agent conducted a thorough investigation using creative approaches to parse the binlog (writing custom C# programs, using binlogtool). It correctly identified the error, the failing file, and the shared Distrib path pattern. However, it missed a key technical detail: the CAS/read-only hard link mechanism that makes files unsignable, instead attributing the issue to concurrent file locking. This is a significant gap since understanding the true root cause (read-only files from CAS) vs. the agent's theory (concurrent lock contention) changes the nature of the problem. The fix proposed is reasonable and would work, but the underlying reasoning about WHY 'Access is denied' occurs is incomplete. The investigation was methodical but took many steps (66 tool calls) to reach conclusions.",
+            "rubricScores": [
+              {
+                "criterion": "Found the MSB3073 error in the DataSources project's signing step and identified the specific file(s) that failed",
+                "score": 5
+              },
+              {
+                "criterion": "Traced the failing file to its origin — it was placed in the shared output folder by a different project (StorageLibrary or Common)",
+                "score": 4
+              },
+              {
+                "criterion": "Discovered that multiple projects (Common, StorageLibrary, DataSources) all set their Distrib property to the same ConfigurationLinterService output path",
+                "score": 4
+              },
+              {
+                "criterion": "Identified that CloudBuild's content-addressable store (CAS) places outputs as read-only hard links, making them unsignable by other projects' signing steps",
+                "score": 2
+              },
+              {
+                "criterion": "Explained the non-deterministic nature: failure depends on which project's SignCopiedFiles target runs first and encounters files from other projects",
+                "score": 3
+              },
+              {
+                "criterion": "Proposed removing Distrib and Robocopy from library projects (Common, StorageLibrary) so only the service project (DataSources or ConfigurationLinterService) owns the output folder",
+                "score": 4
+              },
+              {
+                "criterion": "Verified the fix by confirming that with separated outputs, each project would only sign its own files",
+                "score": 3
+              }
+            ],
+            "metrics": {
+              "inputTokens": 2317953,
+              "toolCallCount": 66,
+              "errorCount": 0,
+              "wallTimeMs": 446761,
+              "outputTokens": 19234,
+              "turnCount": 56
+            },
+            "score": 3
+          }
+        },
+        "Analysis — Diagnose why code signing fails with access denied": {
+          "plain": {
+            "reasoning": "The agent did a competent job extracting information from the binlog and identifying the parallel build race condition as the root cause. It correctly identified the cross-project file contention and explained the non-deterministic nature. However, it missed the likely key insight about CAS hard links in CloudBuild causing read-only files (the 'Access is denied' is more about permissions than locks), and its fix suggestions, while reasonable, didn't specifically address the Distrib/Robocopy configuration that the rubric expects. The analysis is plausible but not deeply accurate to the specific build system involved.",
+            "rubricScores": [
+              {
+                "criterion": "Identified that the signing target sweeps a distribution/output folder",
+                "score": 4
+              },
+              {
+                "criterion": "Recognized that multiple projects write to the same output folder",
+                "score": 4
+              },
+              {
+                "criterion": "Connected the access-denied error to file ownership or read-only constraints (such as CAS hard links in CloudBuild)",
+                "score": 2
+              },
+              {
+                "criterion": "Explained why the failure is non-deterministic (depends on project build order / timing)",
+                "score": 4
+              },
+              {
+                "criterion": "Suggested separating project outputs or removing redundant Distrib/Robocopy configurations from library projects",
+                "score": 3
+              }
+            ],
+            "metrics": {
+              "inputTokens": 165614,
+              "toolCallCount": 11,
+              "errorCount": 0,
+              "wallTimeMs": 76947,
+              "outputTokens": 2911,
+              "turnCount": 10
+            },
+            "score": 3
+          }
+        }
+      },
+      "description": "DataSources Signing Failure — Root Cause & Fix"
+    },
+    "02-binding-redirect-poison": {
+      "scenarios": {
+        "Deep — Full autonomous root cause investigation and fix proposal": {
+          "plain": {
+            "reasoning": "The agent conducted a thorough investigation despite significant tooling challenges (binlogtool limitations, binary format issues). It correctly identified the failing project, target framework, error, root cause mechanism, and proposed a concrete fix. The main weakness is that the agent never actually read the App.config XML content (as explicitly requested in the task), instead inferring it from RAR behavior. The investigation was methodical but took many steps (106 tool calls) due to tooling difficulties. The final analysis is coherent, well-structured, and the proposed fix is appropriate. The agent's conclusions are well-supported by the evidence gathered.",
+            "rubricScores": [
+              {
+                "score": 5,
+                "criterion": "Identified MSB3277 for System.Diagnostics.DiagnosticSource in DeviceConfigClient, specifically in the net8.0 target framework build"
+              },
+              {
+                "score": 4,
+                "criterion": "Discovered that the NuGet package ships different assembly versions per TFM: 10.0.0.0 for net8.0 and 10.0.0.3 for net472"
+              },
+              {
+                "score": 3,
+                "criterion": "Found the App.config file with a binding redirect that specifies newVersion=10.0.0.3"
+              },
+              {
+                "score": 4,
+                "criterion": "Traced how the AppConfigFile MSBuild property feeds into the ResolveAssemblyReference task for ALL target frameworks, including net8.0 where binding redirects don't apply"
+              },
+              {
+                "score": 4,
+                "criterion": "Explained that RAR reads the binding redirect and tries to unify to version 10.0.0.3, which conflicts with the actual net8.0 assembly version 10.0.0.0"
+              },
+              {
+                "score": 3,
+                "criterion": "Noted that the error message is misleading — it claims other assemblies depend on 10.0.0.3, but this is an artifact of RAR applying the redirect before reporting"
+              },
+              {
+                "score": 4,
+                "criterion": "Proposed removing the hardcoded binding redirect from App.config as the specific fix, noting that AutoGenerateBindingRedirects handles this correctly for net472"
+              }
+            ],
+            "metrics": {
+              "inputTokens": 6374589,
+              "outputTokens": 40839,
+              "errorCount": 0,
+              "turnCount": 104,
+              "wallTimeMs": 1324995,
+              "toolCallCount": 106
+            },
+            "score": 4
+          }
+        },
+        "Analysis — Find root cause of DiagnosticSource version conflict": {
+          "plain": {
+            "reasoning": "The agent methodically traced through the binlog, identified the exact root cause (App.config with binding redirect being unconditionally passed to RAR for net8.0), provided comparative evidence (TracePropagation.Wcf without AppConfigFile works fine), and suggested an appropriate fix. The investigation was thorough and the explanation is clear and accurate.",
+            "rubricScores": [
+              {
+                "score": 5,
+                "criterion": "Identified that the conflict involves assembly versions 10.0.0.0 (net8.0) and 10.0.0.3 (net472)"
+              },
+              {
+                "score": 5,
+                "criterion": "Recognized that the conflict occurs specifically in the net8.0 build, not net472"
+              },
+              {
+                "score": 5,
+                "criterion": "Found that App.config or a binding redirect is involved in the root cause"
+              },
+              {
+                "score": 5,
+                "criterion": "Explained that MSBuild's RAR reads App.config for all target frameworks, not just .NET Framework"
+              },
+              {
+                "score": 5,
+                "criterion": "Suggested removing the hardcoded binding redirect rather than suppressing the warning"
+              }
+            ],
+            "metrics": {
+              "inputTokens": 1674258,
+              "outputTokens": 30479,
+              "errorCount": 0,
+              "turnCount": 48,
+              "wallTimeMs": 859583,
+              "toolCallCount": 48
+            },
+            "score": 5
+          }
+        },
+        "Insight — Inspect how RAR processes binding redirects across TFMs": {
+          "plain": {
+            "reasoning": "The agent spent 50 tool calls and significant time but failed to answer the core question. It found surface-level properties (AppConfigFile path, AutoGenerateBindingRedirects=true) but never actually read the App.config file contents to find the binding redirect for DiagnosticSource. The key insight the task was driving at - that App.config contains a manual binding redirect to version 10.0.0.3 which conflicts with the actual assembly version 10.0.0.0 in the net8.0 NuGet package, and that AutoGenerateBindingRedirects being enabled makes this manual redirect unnecessary - was entirely missed. The agent's explanation focuses on the MSB3277 conflict error rather than the root cause (the App.config binding redirect).",
+            "rubricScores": [
+              {
+                "score": 4,
+                "criterion": "Found the AppConfigFile property value for the net8.0 inner build"
+              },
+              {
+                "score": 1,
+                "criterion": "Located the binding redirect entry for DiagnosticSource in App.config"
+              },
+              {
+                "score": 2,
+                "criterion": "Explained that the binding redirect specifies newVersion=10.0.0.3 which conflicts with the net8.0 assembly version 10.0.0.0"
+              },
+              {
+                "score": 2,
+                "criterion": "Noted that AutoGenerateBindingRedirects is already enabled, making the manual redirect unnecessary"
+              }
+            ],
+            "metrics": {
+              "inputTokens": 1668782,
+              "outputTokens": 13326,
+              "errorCount": 0,
+              "turnCount": 50,
+              "wallTimeMs": 436173,
+              "toolCallCount": 50
+            },
+            "score": 2
+          }
+        },
+        "Surface — Extract MSB3277 assembly version conflict details": {
+          "plain": {
+            "reasoning": "The agent efficiently navigated the binlog analysis, finding the right tool and searching for the MSB3277 warning. It correctly identified the conflicting assembly, affected project, and version numbers. The only notable gaps are not explicitly mentioning MSB3277 in the output and missing the target framework (net8.0). The approach was methodical and efficient with no wasted steps.",
+            "rubricScores": [
+              {
+                "score": 3,
+                "criterion": "Identified MSB3277 as the error code"
+              },
+              {
+                "score": 5,
+                "criterion": "Named System.Diagnostics.DiagnosticSource as the conflicting assembly"
+              },
+              {
+                "score": 5,
+                "criterion": "Identified DeviceConfigClient as the project with the conflict"
+              },
+              {
+                "score": 5,
+                "criterion": "Noted the two conflicting versions (10.0.0.0 vs 10.0.0.3)"
+              },
+              {
+                "score": 1,
+                "criterion": "Mentioned which target framework (net8.0) is affected by the conflict"
+              }
+            ],
+            "metrics": {
+              "inputTokens": 110554,
+              "outputTokens": 1293,
+              "errorCount": 0,
+              "turnCount": 8,
+              "wallTimeMs": 50599,
+              "toolCallCount": 8
+            },
+            "score": 4
+          }
+        }
+      },
+      "description": "MSB3277 Investigation: System.Diagnostics.DiagnosticSource Version Conflict"
+    }
+  }
+}
