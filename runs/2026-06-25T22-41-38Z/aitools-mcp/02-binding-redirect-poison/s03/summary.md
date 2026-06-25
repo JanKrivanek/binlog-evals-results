@@ -1,0 +1,7 @@
+## Skill Validation Results
+
+| Skill | Scenario | Quality (Isolated) | Quality (Plugin) | Skills Loaded | Overfit | Verdict |
+|-------|----------|--------------------|------------------|---------------|---------|---------|
+| eval-mcp-assist | Deep — Full autonomous root cause investigation and fix proposal | **4.0/5** → 3.0/5 🔴 | **4.0/5** → 2.0/5 🔴 | ✅ eval-mcp-assist; tools: skill, binlog-binlog_overview, binlog-binlog_errors, binlog-binlog_warnings, binlog-binlog_assembly_conflicts, binlog-binlog_search, binlog-binlog_projects, binlog-binlog_evaluations, binlog-binlog_properties, binlog-binlog_items, binlog-binlog_evaluation_global_properties, binlog-binlog_tasks_in_target, binlog-binlog_search_files, binlog-binlog_files, binlog-binlog_task_details, binlog-binlog_explain_property, binlog-binlog_evaluation_properties, binlog-binlog_project_targets, binlog-binlog_compiler, binlog-binlog_diagnose / ✅ eval-mcp-assist; tools: skill, binlog-binlog_overview, binlog-binlog_errors, binlog-binlog_assembly_conflicts, binlog-binlog_search, binlog-binlog_warnings, binlog-binlog_evaluations, binlog-binlog_properties, binlog-binlog_evaluation_global_properties, binlog-binlog_tasks_in_target, binlog-binlog_items, binlog-binlog_files, binlog-binlog_task_details, binlog-binlog_search_files, binlog-binlog_explain_property, binlog-binlog_project_targets, binlog-binlog_evaluation_properties, binlog-binlog_nuget, binlog-binlog_imports | — | ❌ |
+
+Model: claude-opus-4.6 | Judge: claude-opus-4.6
