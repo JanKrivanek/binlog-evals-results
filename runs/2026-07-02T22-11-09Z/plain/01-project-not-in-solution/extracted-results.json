@@ -1,0 +1,152 @@
+{
+  "configId": "A",
+  "extractRun": "baseline",
+  "configName": "plain",
+  "caseName": "01-project-not-in-solution",
+  "scenarios": [
+    {
+      "scenario": "Analysis — Diagnose why a file copy failed during build",
+      "metrics": {
+        "outputTokens": 20089,
+        "errorCount": 0,
+        "inputTokens": 1908722,
+        "toolCallCount": 53,
+        "turnCount": 53,
+        "wallTimeMs": 586619
+      },
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified that the missing file is from a project output directory"
+        },
+        {
+          "score": 5,
+          "criterion": "Noticed the Debug vs Release path discrepancy (the file was expected in Release but the dependency was built in Debug, or vice versa)"
+        },
+        {
+          "score": 3,
+          "criterion": "Recognized that the referenced project may not be part of the solution, leading to a configuration mismatch"
+        },
+        {
+          "score": 3,
+          "criterion": "Explained the causal chain: project not in solution → wrong configuration → output in wrong path → copy fails"
+        },
+        {
+          "score": 2,
+          "criterion": "Suggested adding the project to the solution as a potential fix"
+        }
+      ],
+      "reasoning": "The agent did solid investigative work, correctly identifying the error, the Debug vs Release mismatch, and the fact that Configuration wasn't being passed to the child project. However, it misattributed the root cause to ProjectReference property-stripping behavior rather than recognizing the more fundamental issue that the project likely isn't in the solution file (and thus doesn't get configuration mapping). The fix suggestion is also off-target. The investigation was thorough but took many steps (53 tool calls) and the final diagnosis, while close, doesn't quite nail the true root cause.",
+      "score": 3
+    },
+    {
+      "scenario": "Deep — Full autonomous root cause investigation and fix proposal",
+      "metrics": {
+        "outputTokens": 12434,
+        "errorCount": 0,
+        "inputTokens": 1158991,
+        "toolCallCount": 40,
+        "turnCount": 38,
+        "wallTimeMs": 411971
+      },
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified the specific error (MSB3030 in LrgWindowsFabricHost) with the exact missing file path"
+        },
+        {
+          "score": 5,
+          "criterion": "Traced the missing file to LrgWindowsAppManifest's output directory and noticed it was built under Debug, not Release"
+        },
+        {
+          "score": 2,
+          "criterion": "Verified that LrgWindowsAppManifest is referenced via ProjectReference but is NOT listed in the solution file"
+        },
+        {
+          "score": 2,
+          "criterion": "Explained the full causal chain: project absent from solution → MSBuild doesn't assign it the Release configuration → it uses Debug from a prior build → output lands in Debug path → copy from Release path fails"
+        },
+        {
+          "score": 3,
+          "criterion": "Cross-referenced multiple data points (solution project list, project configurations, output paths, ProjectReference declarations) to confirm the hypothesis"
+        },
+        {
+          "score": 1,
+          "criterion": "Proposed the specific fix: add LrgWindowsAppManifest to the solution file"
+        },
+        {
+          "score": 1,
+          "criterion": "Verified the fix would resolve the issue by confirming that adding the project to the solution would cause it to receive the Release configuration and produce output in the correct path"
+        }
+      ],
+      "reasoning": "The agent did excellent work identifying the error and the immediate cause (Debug vs Release path mismatch). It correctly found that LrgWindowsAppManifest builds without configuration properties and defaults to Debug. However, it missed the deeper root cause: the project is not in the solution file, which is why it doesn't receive the Release configuration from the solution-level build. Instead, it proposed a ProjectReference-level fix (SetConfiguration/SetPlatform) which is a valid workaround but not the canonical fix. The investigation was thorough in many respects but missed a critical piece of evidence (the solution file contents).",
+      "score": 3
+    },
+    {
+      "scenario": "Insight — Determine which projects are in the solution vs referenced",
+      "metrics": {
+        "outputTokens": 2868,
+        "errorCount": 0,
+        "inputTokens": 213653,
+        "toolCallCount": 13,
+        "turnCount": 13,
+        "wallTimeMs": 129429
+      },
+      "rubricScores": [
+        {
+          "score": 2,
+          "criterion": "Listed the projects that were built as part of the solution"
+        },
+        {
+          "score": 1,
+          "criterion": "Identified that LrgWindowsAppManifest was referenced but not included in the solution build"
+        },
+        {
+          "score": 2,
+          "criterion": "Noted the configuration (Debug vs Release) used for the missing project vs the referencing project"
+        },
+        {
+          "score": 1,
+          "criterion": "Connected the dots: project not in solution → builds with stale/wrong config → output in wrong path"
+        }
+      ],
+      "reasoning": "The agent successfully extracted the error message (MSB3030 about missing ApplicationManifest.xml) and identified the involved projects (LrgWindowsFabricHost and LrgWindowsAppManifest). However, it made critical analytical errors: it incorrectly stated LrgWindowsAppManifest was included in the solution build when it wasn't, failed to identify configuration mismatches between projects, and completely missed the root cause connection. The technical approach was reasonable (using binlogtool and a custom C# parser), but the conclusions drawn were largely incorrect.",
+      "score": 2
+    },
+    {
+      "scenario": "Surface — Identify build error from binlog (missing file copy)",
+      "metrics": {
+        "outputTokens": 1197,
+        "errorCount": 0,
+        "inputTokens": 108090,
+        "toolCallCount": 8,
+        "turnCount": 8,
+        "wallTimeMs": 43013
+      },
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified the MSB3030 error (could not copy file)"
+        },
+        {
+          "score": 5,
+          "criterion": "Named the project that failed (LrgWindowsFabricHost)"
+        },
+        {
+          "score": 5,
+          "criterion": "Included the full file path that was not found"
+        },
+        {
+          "score": 4,
+          "criterion": "Mentioned what the copy target was trying to do (copy a project output file)"
+        },
+        {
+          "score": 5,
+          "criterion": "Noted the target framework (net8.0-windows) involved in the failure"
+        }
+      ],
+      "reasoning": "The agent efficiently identified the build error, named the failing project, provided the full path, explained the root cause with additional insight about the Debug/Release mismatch, and included the target framework. The approach was methodical despite some initial tool exploration.",
+      "score": 5
+    }
+  ]
+}
