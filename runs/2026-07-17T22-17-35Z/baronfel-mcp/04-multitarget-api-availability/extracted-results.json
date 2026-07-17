@@ -1,0 +1,156 @@
+{
+  "configName": "baronfel-mcp",
+  "extractRun": "plugin",
+  "caseName": "04-multitarget-api-availability",
+  "scenarios": [
+    {
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Recognized that the 'not defined' (FS0039) errors occur ONLY on the net472 target framework"
+        },
+        {
+          "score": 4,
+          "criterion": "Identified the undefined symbols as .NET-only runtime hot-reload/loading APIs: MetadataUpdater, AssemblyLoadContext, System.Runtime.Loader"
+        },
+        {
+          "score": 5,
+          "criterion": "Explained that net472 (.NET Framework 4.7.2) lacks these APIs, hence the FS0039 errors"
+        },
+        {
+          "score": 5,
+          "criterion": "Recognized FS0072 (type-inference) errors as a cascade downstream of the undefined symbols, not independent bugs"
+        },
+        {
+          "score": 4,
+          "criterion": "Noted that a small number of net10.0 errors (FS0001 type mismatches) are a separate, real problem"
+        }
+      ],
+      "score": 4,
+      "scenario": "Analysis — Diagnose the root cause of the compiler errors",
+      "metrics": {
+        "errorCount": 0,
+        "inputTokens": 358132,
+        "wallTimeMs": 109655,
+        "outputTokens": 4502,
+        "toolCallCount": 19,
+        "turnCount": 12
+      },
+      "reasoning": "The agent performed a solid root cause analysis. It correctly identified the multi-targeting issue, the .NET Core-only APIs causing failures on net472, the cascade effect of FS0039 into FS0072 errors, and the separate net10.0 issue. The approach was methodical despite some minor hiccups (file path issues with bash). The final output is well-structured and actionable with a clear fix suggestion."
+    },
+    {
+      "rubricScores": [
+        {
+          "score": 4,
+          "criterion": "Summarized the failure accurately: ~167 distinct errors across net10.0 and net472 in FSharp.Compiler.ComponentTests"
+        },
+        {
+          "score": 5,
+          "criterion": "Grouped the errors into the dominant net472 root cause (missing .NET-only hot-reload APIs) plus a small set of real net10.0 type errors"
+        },
+        {
+          "score": 4,
+          "criterion": "Verified the net472 root cause via the per-framework attribution: all 64 FS0039 'not defined' errors are on net472, none on net10.0"
+        },
+        {
+          "score": 5,
+          "criterion": "Explained the FS0039 -> FS0072 cascade (undefined base type -> inference failures at member access)"
+        },
+        {
+          "score": 5,
+          "criterion": "Proposed a concrete fix: exclude the HotReload tests from the net472 build (TargetFramework condition / #if NETCOREAPP / net-only test project), since the APIs are .NET-only"
+        },
+        {
+          "score": 4,
+          "criterion": "Separately called out fixing the ~8 genuine net10.0 type errors"
+        },
+        {
+          "score": 4,
+          "criterion": "Cross-referenced multiple data points (error codes, undefined symbol names, target frameworks, the HotReload source files) to confirm the conclusion"
+        }
+      ],
+      "score": 4,
+      "scenario": "Deep — Full autonomous root-cause investigation and fix",
+      "metrics": {
+        "errorCount": 0,
+        "inputTokens": 740084,
+        "wallTimeMs": 211514,
+        "outputTokens": 7224,
+        "toolCallCount": 40,
+        "turnCount": 22
+      },
+      "reasoning": "The agent performed a thorough investigation despite some initial stumbles (file not found, failed MCP calls). It correctly identified the root causes, properly attributed errors to their target frameworks, explained the cascade mechanism, and proposed concrete fixes. The report is well-structured with clear evidence. Minor deductions for: some imprecision in error counts (approximate rather than exact), some failed tool calls that required workarounds, and the Root Cause F (MdvValidationTests) which seems somewhat speculative without direct evidence from the diagnostics showing those specific type mismatches."
+    },
+    {
+      "rubricScores": [
+        {
+          "score": 2,
+          "criterion": "Quantified the per-framework split: net472 carries the large majority (~159, including all 64 FS0039), net10.0 only ~8"
+        },
+        {
+          "score": 4,
+          "criterion": "Concluded the net472 failures stem from missing .NET-only APIs (MetadataUpdater / AssemblyLoadContext)"
+        },
+        {
+          "score": 2,
+          "criterion": "Concluded the net10.0 failures are genuine type errors (e.g. 'byte array' is not an unmanaged type; string vs string*StringComparison tuple), independent of the framework"
+        },
+        {
+          "score": 5,
+          "criterion": "Stated these are TWO distinct problems, not one"
+        },
+        {
+          "score": 4,
+          "criterion": "Used the binlog's per-(project, target-framework) attribution as the evidence for the split"
+        }
+      ],
+      "score": 3,
+      "scenario": "Insight — Split the failures per target framework",
+      "metrics": {
+        "errorCount": 0,
+        "inputTokens": 328790,
+        "wallTimeMs": 132214,
+        "outputTokens": 3885,
+        "toolCallCount": 19,
+        "turnCount": 14
+      },
+      "reasoning": "The agent successfully identified the multi-targeted test project, correctly attributed errors to frameworks using binlog project IDs, and reached the right high-level conclusion that net10.0 and net472 have different root causes. However, the quantitative analysis is significantly off - the agent reports 63 total errors for the test project when the rubric expects ~167, likely because it failed to investigate Project 759 (100 errors) that appeared in its own output but was never followed up on. The net10.0 error count (2 vs expected ~8) is also substantially underreported. The qualitative analysis of error types is mostly correct but incomplete."
+    },
+    {
+      "rubricScores": [
+        {
+          "score": 4,
+          "criterion": "Identified that the build failed with F# compiler errors (FS0039 / FS0072 dominate)"
+        },
+        {
+          "score": 2,
+          "criterion": "Reported the scale: ~167 distinct errors (170 occurrences), not just the first handful"
+        },
+        {
+          "score": 3,
+          "criterion": "Named the failing project(s): FSharp.Compiler.ComponentTests (and FSharp.Compiler.Service.Tests)"
+        },
+        {
+          "score": 1,
+          "criterion": "Noted the two target frameworks involved (net10.0 and net472)"
+        },
+        {
+          "score": 4,
+          "criterion": "Observed the errors are concentrated in the new HotReload test files"
+        }
+      ],
+      "score": 3,
+      "scenario": "Surface — Extract build errors from a large multi-target failure",
+      "metrics": {
+        "errorCount": 0,
+        "inputTokens": 95942,
+        "wallTimeMs": 53015,
+        "outputTokens": 1160,
+        "toolCallCount": 5,
+        "turnCount": 5
+      },
+      "reasoning": "The agent provided a reasonable summary of the build failures, correctly identifying the main error types and their concentration in HotReload test files. However, it significantly underreported the scale of errors (saying 50+ instead of ~167), missed one of the failing projects, and completely omitted the target framework information. The approach was reasonable but the permission error on the first attempt to read the full output led to using maxResults=50 which limited the analysis."
+    }
+  ],
+  "configId": "C"
+}
