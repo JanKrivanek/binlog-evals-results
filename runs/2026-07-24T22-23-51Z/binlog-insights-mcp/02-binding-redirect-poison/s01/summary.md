@@ -1,0 +1,9 @@
+## Skill Validation Results
+
+| Skill | Scenario | Quality (Isolated) | Quality (Plugin) | Skills Loaded | Overfit | Verdict |
+|-------|----------|--------------------|------------------|---------------|---------|---------|
+| eval-mcp-assist | Analysis — Find root cause of DiagnosticSource version conflict | 4.0/5 → 4.0/5 | 4.0/5 → **5.0/5** 🟢 | ✅ eval-mcp-assist; tools: skill, binlog-insights-binlog_overview, binlog-insights-binlog_errors, glob, stop_bash, binlog-insights-binlog_search, binlog-insights-binlog_task_details, binlog-insights-binlog_list_files, binlog-insights-binlog_properties, binlog-insights-binlog_evaluations, binlog-insights-binlog_evaluation_global_properties, binlog-insights-binlog_evaluation_properties, binlog-insights-binlog_get_file, binlog-insights-binlog_items, binlog-insights-binlog_item_types, binlog-insights-binlog_search_targets, binlog-insights-binlog_nuget, binlog-insights-binlog_compiler, binlog-insights-binlog_project_targets, binlog-insights-binlog_tasks_in_target, binlog-insights-binlog_preprocess, binlog-insights-binlog_warnings / ⚠️ NOT ACTIVATED | — | ❌ <a href="#user-content-fn-1" id="ref-1">[1]</a> |
+
+<a href="#user-content-ref-1" id="fn-1"><strong>[1]</strong></a> (Isolated) Quality unchanged but weighted score is -9.8% due to: tokens (2085692 → 3986976), quality, tool calls (49 → 111)
+
+Model: claude-opus-4.6 | Judge: claude-opus-4.6
