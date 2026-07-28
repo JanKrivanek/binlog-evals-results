@@ -1,0 +1,7 @@
+## Skill Validation Results
+
+| Skill | Scenario | Quality (Isolated) | Quality (Plugin) | Skills Loaded | Overfit | Verdict |
+|-------|----------|--------------------|------------------|---------------|---------|---------|
+| eval-mcp-assist | Deep — Full autonomous root cause investigation and fix proposal | 3.0/5 → 3.0/5 | 3.0/5 → 3.0/5 | ✅ eval-mcp-assist; tools: skill, glob, binlog-load_binlog, binlog-search, binlog-print_subtree, binlog-get_children, binlog-search_properties_and_items, binlog-list_files, binlog-read_file / ✅ eval-mcp-assist; tools: skill, binlog-load_binlog, binlog-search, glob, binlog-print_subtree, binlog-get_ancestors, view, binlog-get_children, binlog-search_properties_and_items, binlog-get_node, binlog-read_file, binlog-list_files | — | ✅ |
+
+Model: claude-opus-4.6 | Judge: claude-opus-4.6
