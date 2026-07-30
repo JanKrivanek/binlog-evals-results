@@ -1,0 +1,7 @@
+## Skill Validation Results
+
+| Skill | Scenario | Quality (Isolated) | Quality (Plugin) | Skills Loaded | Overfit | Verdict |
+|-------|----------|--------------------|------------------|---------------|---------|---------|
+| eval-mcp-assist | Analysis — Find root cause of DiagnosticSource version conflict | 5.0/5 → 5.0/5 | **5.0/5** → 4.0/5 🔴 | ✅ eval-mcp-assist; tools: skill, binlog-binlog_assembly_conflicts, binlog-binlog_errors, binlog-binlog_warnings, glob, binlog-binlog_overview, stop_bash, binlog-binlog_search, binlog-binlog_projects, binlog-binlog_tasks_in_target, binlog-binlog_evaluations, binlog-binlog_task_details, binlog-binlog_properties, binlog-binlog_explain_property, binlog-binlog_files, binlog-binlog_search_files, binlog-binlog_items, binlog-binlog_assets, binlog-binlog_evaluation_global_properties, binlog-binlog_evaluation_properties / ✅ eval-mcp-assist; tools: skill, binlog-binlog_assembly_conflicts, binlog-binlog_errors, binlog-binlog_warnings, glob, binlog-binlog_overview, binlog-binlog_search, binlog-binlog_tasks_in_target, binlog-binlog_projects, binlog-binlog_task_details, binlog-binlog_search_files, binlog-binlog_files, binlog-binlog_items, binlog-binlog_properties, binlog-binlog_explain_property, binlog-binlog_evaluations, binlog-binlog_evaluation_global_properties, binlog-binlog_evaluation_properties, binlog-binlog_assets | — | ❌ |
+
+Model: claude-opus-4.6 | Judge: claude-opus-4.6
