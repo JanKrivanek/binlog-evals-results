@@ -1,0 +1,15 @@
+## Skill Validation Results
+
+| Skill | Scenario | Quality (Isolated) | Quality (Plugin) | Skills Loaded | Overfit | Verdict |
+|-------|----------|--------------------|------------------|---------------|---------|---------|
+| eval-noop | Analysis — Diagnose the root cause of the compiler errors | **5.0/5** → 4.0/5 🔴 | **5.0/5** → 4.0/5 🔴 | ⚠️ NOT ACTIVATED | — | ❌ |
+| eval-noop | Deep — Full autonomous root-cause investigation and fix | 5.0/5 → 5.0/5 | 5.0/5 → 5.0/5 | ⚠️ NOT ACTIVATED | — | ❌ <a href="#user-content-fn-1" id="ref-1">[1]</a> |
+| eval-noop | Insight — Split the failures per target framework | 4.0/5 → **5.0/5** 🟢 | 4.0/5 → **5.0/5** 🟢 | ⚠️ NOT ACTIVATED / ✅ eval-noop; tools: skill | — | ❌ <a href="#user-content-fn-2" id="ref-2">[2]</a> |
+| eval-noop | Surface — Extract build errors from a large multi-target failure | 4.0/5 → 4.0/5 | **4.0/5** → 1.0/5 ⏰ 🔴 | ✅ eval-noop; tools: glob, skill / ⚠️ NOT ACTIVATED | — | ❌ |
+
+<a href="#user-content-ref-1" id="fn-1"><strong>[1]</strong></a> (Plugin) Quality unchanged but weighted score is -22.0% due to: completion (✓ → ✗), tokens (712096 → 1155249), quality, time (296.6s → 431.2s)
+<a href="#user-content-ref-2" id="fn-2"><strong>[2]</strong></a> (Isolated) Quality improved but weighted score is -1.9% due to: completion (✓ → ✗), tokens (376928 → 661366), tool calls (20 → 32)
+
+> ⏰ **timeout** — run(s) hit the scenario timeout limit; scoring may be impacted by aborting model execution before it could produce its full output (increase via `timeout` in eval.yaml)
+
+Model: claude-opus-4.6 | Judge: claude-opus-4.6
