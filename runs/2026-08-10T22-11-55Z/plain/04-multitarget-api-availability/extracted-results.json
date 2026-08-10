@@ -1,0 +1,156 @@
+{
+  "caseName": "04-multitarget-api-availability",
+  "scenarios": [
+    {
+      "metrics": {
+        "toolCallCount": 32,
+        "wallTimeMs": 351957,
+        "turnCount": 31,
+        "inputTokens": 678769,
+        "outputTokens": 5834,
+        "errorCount": 0
+      },
+      "scenario": "Analysis — Diagnose the root cause of the compiler errors",
+      "score": 3,
+      "rubricScores": [
+        {
+          "score": 4,
+          "criterion": "Recognized that the 'not defined' (FS0039) errors occur ONLY on the net472 target framework"
+        },
+        {
+          "score": 5,
+          "criterion": "Identified the undefined symbols as .NET-only runtime hot-reload/loading APIs: MetadataUpdater, AssemblyLoadContext, System.Runtime.Loader"
+        },
+        {
+          "score": 5,
+          "criterion": "Explained that net472 (.NET Framework 4.7.2) lacks these APIs, hence the FS0039 errors"
+        },
+        {
+          "score": 1,
+          "criterion": "Recognized FS0072 (type-inference) errors as a cascade downstream of the undefined symbols, not independent bugs"
+        },
+        {
+          "score": 1,
+          "criterion": "Noted that a small number of net10.0 errors (FS0001 type mismatches) are a separate, real problem"
+        }
+      ],
+      "reasoning": "The agent correctly identified the primary root cause — HotReload files being compiled against net472 without conditional exclusion, using .NET Core-only APIs. The investigation was methodical, using binlogtool to extract errors, project files, and properties. However, it missed two important aspects: recognizing FS0072 cascade errors as downstream effects, and identifying separate net10.0-only errors (FS0001) as a distinct problem. The analysis is partially correct but incomplete."
+    },
+    {
+      "metrics": {
+        "toolCallCount": 41,
+        "wallTimeMs": 361884,
+        "turnCount": 35,
+        "inputTokens": 879531,
+        "outputTokens": 12178,
+        "errorCount": 0
+      },
+      "scenario": "Deep — Full autonomous root-cause investigation and fix",
+      "score": 5,
+      "rubricScores": [
+        {
+          "score": 4,
+          "criterion": "Summarized the failure accurately: ~167 distinct errors across net10.0 and net472 in FSharp.Compiler.ComponentTests"
+        },
+        {
+          "score": 5,
+          "criterion": "Grouped the errors into the dominant net472 root cause (missing .NET-only hot-reload APIs) plus a small set of real net10.0 type errors"
+        },
+        {
+          "score": 5,
+          "criterion": "Verified the net472 root cause via the per-framework attribution: all 64 FS0039 'not defined' errors are on net472, none on net10.0"
+        },
+        {
+          "score": 4,
+          "criterion": "Explained the FS0039 -> FS0072 cascade (undefined base type -> inference failures at member access)"
+        },
+        {
+          "score": 5,
+          "criterion": "Proposed a concrete fix: exclude the HotReload tests from the net472 build (TargetFramework condition / #if NETCOREAPP / net-only test project), since the APIs are .NET-only"
+        },
+        {
+          "score": 4,
+          "criterion": "Separately called out fixing the ~8 genuine net10.0 type errors"
+        },
+        {
+          "score": 5,
+          "criterion": "Cross-referenced multiple data points (error codes, undefined symbol names, target frameworks, the HotReload source files) to confirm the conclusion"
+        }
+      ],
+      "reasoning": "The agent performed an excellent, thorough investigation. It overcame initial tooling challenges (compressed strings file, unfamiliar binlogtool commands) by writing custom C# programs using the MSBuild StructuredLogger API. The final report is well-structured with clear error summaries, 6 distinct root causes backed by specific evidence (file names, line numbers, error codes, TFM attribution), and concrete actionable fixes with quantified impact. The cross-referencing of multiple data points is particularly strong. The 41 tool calls over 361 seconds reflect methodical investigation rather than waste - the agent built increasingly detailed analyses as it went."
+    },
+    {
+      "metrics": {
+        "toolCallCount": 27,
+        "wallTimeMs": 207393,
+        "turnCount": 28,
+        "inputTokens": 711319,
+        "outputTokens": 6091,
+        "errorCount": 0
+      },
+      "scenario": "Insight — Split the failures per target framework",
+      "score": 4,
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Quantified the per-framework split: net472 carries the large majority (~159, including all 64 FS0039), net10.0 only ~8"
+        },
+        {
+          "score": 4,
+          "criterion": "Concluded the net472 failures stem from missing .NET-only APIs (MetadataUpdater / AssemblyLoadContext)"
+        },
+        {
+          "score": 4,
+          "criterion": "Concluded the net10.0 failures are genuine type errors (e.g. 'byte array' is not an unmanaged type; string vs string*StringComparison tuple), independent of the framework"
+        },
+        {
+          "score": 5,
+          "criterion": "Stated these are TWO distinct problems, not one"
+        },
+        {
+          "score": 5,
+          "criterion": "Used the binlog's per-(project, target-framework) attribution as the evidence for the split"
+        }
+      ],
+      "reasoning": "The agent successfully parsed a binary MSBuild log, extracted and categorized all 169 errors by project and target framework, and correctly identified two distinct root causes. The path was somewhat circuitous (multiple failed attempts with strings/grep before settling on the StructuredLogger approach), but the final analysis is accurate, well-structured, and addresses all aspects of the question. The error counts and categorizations are well-supported by the parsed data."
+    },
+    {
+      "metrics": {
+        "toolCallCount": 29,
+        "wallTimeMs": 242567,
+        "turnCount": 30,
+        "inputTokens": 677681,
+        "outputTokens": 8226,
+        "errorCount": 0
+      },
+      "scenario": "Surface — Extract build errors from a large multi-target failure",
+      "score": 4,
+      "rubricScores": [
+        {
+          "score": 5,
+          "criterion": "Identified that the build failed with F# compiler errors (FS0039 / FS0072 dominate)"
+        },
+        {
+          "score": 5,
+          "criterion": "Reported the scale: ~167 distinct errors (170 occurrences), not just the first handful"
+        },
+        {
+          "score": 5,
+          "criterion": "Named the failing project(s): FSharp.Compiler.ComponentTests (and FSharp.Compiler.Service.Tests)"
+        },
+        {
+          "score": 1,
+          "criterion": "Noted the two target frameworks involved (net10.0 and net472)"
+        },
+        {
+          "score": 5,
+          "criterion": "Observed the errors are concentrated in the new HotReload test files"
+        }
+      ],
+      "reasoning": "The agent successfully extracted detailed build failure information from a binary log format, which required significant effort (creating a .NET console app with StructuredLogger). It correctly identified both failing projects, all error codes with counts, and the root cause in HotReload test files. The main gap is not mentioning the two target frameworks involved. The path to the answer was somewhat circuitous (many failed attempts at parsing the binary format before settling on the StructuredLogger approach), but the final output is thorough and accurate on 4 of 5 criteria."
+    }
+  ],
+  "configName": "plain",
+  "extractRun": "baseline",
+  "configId": "A"
+}
