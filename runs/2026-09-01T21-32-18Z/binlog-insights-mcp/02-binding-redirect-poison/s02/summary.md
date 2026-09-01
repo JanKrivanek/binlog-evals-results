@@ -1,0 +1,7 @@
+## Skill Validation Results
+
+| Skill | Scenario | Quality (Isolated) | Quality (Plugin) | Skills Loaded | Overfit | Verdict |
+|-------|----------|--------------------|------------------|---------------|---------|---------|
+| eval-mcp-assist | Insight — Inspect how RAR processes binding redirects across TFMs | **3.0/5** → 2.0/5 🔴 | **3.0/5** → 2.0/5 🔴 | ✅ eval-mcp-assist; tools: skill, binlog-insights-binlog_evaluations, binlog-insights-binlog_evaluation_global_properties, binlog-insights-binlog_evaluation_properties, binlog-insights-binlog_properties, binlog-insights-binlog_search, binlog-insights-binlog_list_files, read_bash, stop_bash, glob, binlog-insights-binlog_get_file / ✅ eval-mcp-assist; tools: skill, binlog-insights-binlog_evaluations, binlog-insights-binlog_evaluation_global_properties, binlog-insights-binlog_evaluation_properties, binlog-insights-binlog_search, binlog-insights-binlog_list_files, read_bash, binlog-insights-binlog_warnings, binlog-insights-binlog_get_file, stop_bash, glob | — | ❌ |
+
+Model: claude-opus-5 | Judge: claude-opus-5
